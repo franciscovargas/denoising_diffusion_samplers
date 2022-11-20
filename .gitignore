@@ -131,3 +131,4 @@ dmypy.json
 # Data files
 DDS.egg-info
 nohup.out
+*.pdf
