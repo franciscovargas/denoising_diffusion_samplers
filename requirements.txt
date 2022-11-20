@@ -1,0 +1,16 @@
+jax[cuda]
+# git+https://github.com/deepmind/jaxline
+optax
+distrax
+dm-haiku
+chex
+numpyro[cuda]
+tfp-nightly
+inference_gym
+ml-collections
+# git+https://github.com/franciscovargas/annealed_flow_transport
+wandb
+absl-py
+jupyter
+jupyter[notebook]
+
