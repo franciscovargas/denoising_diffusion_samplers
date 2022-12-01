@@ -129,6 +129,7 @@ def train_dds(
 
   trim = (2 if "stl" in str(ref_proc).lower() or "udp" in str(ref_proc).lower()
           else 1)
+ 
   stl = config.model.stl
 
   brown = "brown" in str(ref_proc).lower()
@@ -268,13 +269,13 @@ def train_dds(
     gpartial = functools.partial(
         config.model.terminal_cost,
         lnpi=lnpi, sigma=sigma, tfinal=tfinal, brown=brown)
-
+    
     if is_training:
       loss = config.trainer.objective(
-          augmented_trajectory, gpartial, stl=stl, trim=trim)
+          augmented_trajectory, gpartial, stl=stl, trim=trim, dim=data_dim)
     elif not ode:
       loss = config.trainer.lnz_is_estimator(
-          augmented_trajectory, gpartial)
+          augmented_trajectory, gpartial, dim=data_dim)
     else:
       loss = config.trainer.lnz_pf_estimator(
           augmented_trajectory, config.model.source, config.model.target)

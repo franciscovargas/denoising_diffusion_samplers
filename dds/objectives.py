@@ -38,7 +38,7 @@ def ou_terminal_loss(x_terminal, lnpi, sigma=1.0, tfinal=1.0, brown=False):
 
 
 def relative_kl_objective(augmented_trajectory, g,
-                          stl=False, trim=2):
+                          stl=False, trim=2, dim=2):
   """Vanilla relative KL control objective.
 
   Args:
@@ -52,11 +52,11 @@ def relative_kl_objective(augmented_trajectory, g,
   """
 
   energy_cost_dt = augmented_trajectory[:, -1, -1]
-  x_final_time = augmented_trajectory[:, -1, :-trim]
+  x_final_time = augmented_trajectory[:, -1, :dim]
 
   # import pdb; pdb.set_trace()
 
-  stl = augmented_trajectory[:, -1, -trim] if stl else 0
+  stl = augmented_trajectory[:, -1, dim + 1] if stl else 0
 
   terminal_cost = g(x_final_time)
   return (energy_cost_dt + terminal_cost + stl).mean()
@@ -108,7 +108,7 @@ def dds_kl_objective(augmented_trajectory, *_, **__):
   return (loss).mean()
 
 
-def importance_weighted_partition_estimate(augmented_trajectory, g):
+def importance_weighted_partition_estimate(augmented_trajectory, g, trim=2, dim=2):
   """See TODO.
 
   Args:
@@ -119,12 +119,11 @@ def importance_weighted_partition_estimate(augmented_trajectory, g):
       smoothed crosent control loss
   """
 
-  trim = 2
   energy_cost_dt = augmented_trajectory[:, -1, -1]
 
-  x_final_time = augmented_trajectory[:, -1, :-trim]
+  x_final_time = augmented_trajectory[:, -1, :dim]
 
-  stl = augmented_trajectory[:, -1, -trim]
+  stl = augmented_trajectory[:, -1, dim + 1]
 
   terminal_cost = g(x_final_time)
   s_omega = -(energy_cost_dt + terminal_cost + stl)

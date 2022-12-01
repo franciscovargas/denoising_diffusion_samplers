@@ -101,6 +101,7 @@ def sdeint_ito_em_scan_ou(
 
   scheme_args = scheme_args if scheme_args is not None else {}
   ts = step_scheme(start, end, dt, dtype=dtype, **scheme_args)
+  detach = True if args and "detach" in args else False
 
   y_pas = y0
   t_pas = ts[0]
@@ -138,9 +139,18 @@ def sdeint_ito_em_scan_ou(
 
     # Girsanov (quadratic) term update
     u_sq = y_pas[:, -1] + f_aug[:, -1] * beta_k**2
+    
+    # For cross entropy refinement
+    if detach:
+      f_aug_att = f(y_pas, t_pas, [])
+      u_sq_att = y_pas[:, -1] + f_aug_att[:, -1] * beta_k**2
+    else:
+      u_sq_att = u_sq
 
     y = np.concatenate((y_naug,
-                        u_dw[..., None], u_sq[..., None]), axis=-1)
+                        u_dw[..., None],
+                        u_sq_att[..., None],
+                        u_sq[..., None]), axis=-1)
 
     # t_pas = t_
     # y_pas = y

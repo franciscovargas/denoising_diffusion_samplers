@@ -62,7 +62,9 @@ class AugmentedBrownianFollmerSDESTL(hk.Module):
         0, self.tfinal, self.dt, dtype=self.dtype,
         **dict())
 
-  def __call__(self, batch_size, is_training=True, dt=None, ode=False):
+  def __call__(
+      self, batch_size, is_training=True,
+      dt=None, ode=False):
     key = hk.next_rng_key()
     dt = self.dt if dt is None or is_training else dt
     return self.sample_aug_trajectory(
@@ -149,7 +151,7 @@ class AugmentedBrownianFollmerSDESTL(hk.Module):
     y0 = self.init_sample(batch_size, key)
 
     zeros = np.zeros((batch_size, 1))
-    y0_aug = np.concatenate((y0, zeros, zeros), axis=1)
+    y0_aug = np.concatenate((y0, zeros), axis=1)
 
     def g_prod(y, t, args, noise):
       """Defines how to compute the product between the aug diff coef and noise.
@@ -240,14 +242,17 @@ class AugmentedOUFollmerSDESTL(AugmentedBrownianFollmerSDESTL):
     """
     return jax.random.normal(key, (n, self.dim)) * self.sigma
 
-  def f_aug(self, y, t, args):
+  def f_aug(self, y, t, args, detach=False):
     """See base class."""
     t_ = t * np.ones((y.shape[0], 1))
 
     y_no_aug = y[..., :self.dim]
 
     b_t = self.prior_drift(y_no_aug, t_)
-    u_t = self.drift_network(y_no_aug, t_, self.target)
+   
+    u_t = (self.detached_drift(
+        y_no_aug, t_, self.target) 
+           if detach else self.drift_network(y_no_aug, t_, self.target))
 
     gamma_t_sq = self.g_aug(y, t, args)[..., :self.dim]**2
 
@@ -319,8 +324,16 @@ class AugmentedOUDFollmerSDESTL(AugmentedBrownianFollmerSDESTL):
     y_no_aug = y[..., :self.dim]
 
     ode = True if args and "ode" in args else False
+    detach = True if args and "detach" in args else False
 
-    u_t = self.drift_network(y_no_aug, t_, self.target, ode=ode)
+#     u_t = self.drift_network(y_no_aug, t_, self.target, ode=ode)
+    u_t = (self.detached_drift(
+        y_no_aug, t_,
+        self.target, ode=ode
+    ) if detach else self.drift_network(
+        y_no_aug, t_,
+        self.target, ode=ode
+    ))
 
     gamma_t_sq = self.g_aug(y, t, args)[..., :self.dim]**2
 
@@ -342,8 +355,9 @@ class AugmentedOUDFollmerSDESTL(AugmentedBrownianFollmerSDESTL):
     gamma_t = self.sigma * np.ones_like(y_no_aug)
 
     zeros = np.zeros((n, 1))
-
-    if self.detach_drift_stoch:
+    
+    detach = True if args and "detach" in args else False
+    if self.detach_drift_stoch or detach:
       u_t = self.detached_drift(y_no_aug, t_, self.target)
     else:
       u_t = self.drift_network(y_no_aug, t_, self.target)
@@ -359,7 +373,11 @@ class AugmentedOUDFollmerSDESTL(AugmentedBrownianFollmerSDESTL):
     y0 = self.init_sample(batch_size, key)
 
     zeros = np.zeros((batch_size, 1))
-    y0_aug = np.concatenate((y0, zeros, zeros), axis=1)
+    
+    if odd:
+        y0_aug = np.concatenate((y0, zeros, zeros), axis=1)
+    else:
+        y0_aug = np.concatenate((y0, zeros, zeros, zeros), axis=1)
 
     # notice no g_prod as that is handled internally by this specialised
     # ou based sampler.
