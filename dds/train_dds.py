@@ -9,6 +9,7 @@ from absl import flags
 
 from absl import logging
 import haiku as hk
+import distrax
 import jax
 import jax.numpy as jnp
 
@@ -94,6 +95,11 @@ def train_dds(
   alpha = config.model.alpha
   sigma = config.model.sigma
   m = config.model.m
+   
+  # post setup model vars
+  config.model.source = distrax.MultivariateNormalDiag(
+      jnp.zeros(config.model.input_dim),
+      config.model.sigma * jnp.ones(config.model.input_dim)).log_prob
 
   batch_size_ = int(config.model.batch_size / device_no)
   batch_size_elbo = int(config.model.elbo_batch_size / device_no)
@@ -458,6 +464,8 @@ def train_dds(
       "elbo_eval": loss_list_eval,
       "is_eval": loss_list_is_eval,
       "pf_eval": loss_list_pf_eval,
+      "aug": augmented_trajectory,
+      "aug_ode": augmented_trajectory_det
   }
   return params, model_state, forward_fn_wrap, rng_key, results_dict
 

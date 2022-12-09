@@ -207,10 +207,6 @@ def set_task(config, task="lr_sonar"):
   else:
     raise BaseException("Task config not implemented")
 
-  # post setup model vars
-  config.model.source = distrax.MultivariateNormalDiag(
-      np.zeros(config.model.input_dim),
-      config.model.sigma * np.ones(config.model.input_dim)).log_prob
   tpu = config.model.tpu
 
   dtype = np.float32 if tpu else np.float64

@@ -298,6 +298,7 @@ class PISGRADNet(hk.Module):
     grad_bool = self.stop_grad and not ode
     # Using score information as a feature
     grad = hk.grad(lambda _x: target(_x).sum())(input_array)
+#     print("grad bool", grad_bool)
     grad = jax.lax.stop_gradient(grad) if grad_bool else grad
     grad = np.clip(grad, -self.lgv_clip, self.lgv_clip)
 
@@ -307,9 +308,9 @@ class PISGRADNet(hk.Module):
     extended_input = np.concatenate((input_array, t_net_1), axis=-1)
     out_state = self.state_time_net(extended_input)
 
-    # out_state = np.clip(
-    #     out_state, -self.nn_clip, self.nn_clip
-    # )
+    out_state = np.clip(
+        out_state, -self.nn_clip, self.nn_clip
+    )
 
     out_state_p_grad = out_state + t_net_2 * grad
     return out_state_p_grad

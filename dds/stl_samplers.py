@@ -151,7 +151,7 @@ class AugmentedBrownianFollmerSDESTL(hk.Module):
     y0 = self.init_sample(batch_size, key)
 
     zeros = np.zeros((batch_size, 1))
-    y0_aug = np.concatenate((y0, zeros), axis=1)
+    y0_aug = np.concatenate((y0, zeros, zeros), axis=1)
 
     def g_prod(y, t, args, noise):
       """Defines how to compute the product between the aug diff coef and noise.
@@ -186,7 +186,7 @@ class AugmentedBrownianFollmerSDESTL(hk.Module):
       return  np.concatenate((gdw, udw[..., None], zeros[..., None]), axis=-1)
 
     param_trajectory, ts = sdeint_ito_em_scan(
-        self.f_aug, self.g_aug, y0_aug, key, dt=dt,
+        self.dim, self.f_aug, self.g_aug, y0_aug, key, dt=dt,
         g_prod=g_prod, end=self.tfinal, step_scheme=self.step_scheme,
         dtype=self.dtype
     )
@@ -374,7 +374,7 @@ class AugmentedOUDFollmerSDESTL(AugmentedBrownianFollmerSDESTL):
 
     zeros = np.zeros((batch_size, 1))
     
-    if odd:
+    if ode:
         y0_aug = np.concatenate((y0, zeros, zeros), axis=1)
     else:
         y0_aug = np.concatenate((y0, zeros, zeros, zeros), axis=1)
@@ -383,6 +383,7 @@ class AugmentedOUDFollmerSDESTL(AugmentedBrownianFollmerSDESTL):
     # ou based sampler.
     ddpm_param = not self.exp_bool
     integrator = odeint_em_scan_ou if ode else sdeint_ito_em_scan_ou
+
     param_trajectory, ts = integrator(
         self.dim, self.alpha, self.f_aug, self.g_aug, y0_aug, key, dt=dt,
         end=self.tfinal, step_scheme=self.step_scheme, ddpm_param=ddpm_param,

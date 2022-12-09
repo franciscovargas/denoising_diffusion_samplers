@@ -56,13 +56,13 @@ def relative_kl_objective(augmented_trajectory, g,
 
   # import pdb; pdb.set_trace()
 
-  stl = augmented_trajectory[:, -1, dim + 1] if stl else 0
+  stl = augmented_trajectory[:, -1, dim] if stl else 0
 
   terminal_cost = g(x_final_time)
   return (energy_cost_dt + terminal_cost + stl).mean()
 
 
-def prob_flow_lnz(augmented_trajectory, eq_dist, target_dist, _=False):
+def prob_flow_lnz(augmented_trajectory, eq_dist, target_dist, _=False, debug=False):
   """Vanilla relative KL control objective.
 
   Args:
@@ -79,7 +79,7 @@ def prob_flow_lnz(augmented_trajectory, eq_dist, target_dist, _=False):
   trace = augmented_trajectory[:, -1, -1]
   x_init_time = augmented_trajectory[:, 0, :-trim]
   x_final_time = augmented_trajectory[:, -1, :-trim]
-  # import pdb; pdb.set_trace()
+
 
   ln_gamma = target_dist(x_final_time)
   lnq_0 = eq_dist(x_init_time)
@@ -88,6 +88,8 @@ def prob_flow_lnz(augmented_trajectory, eq_dist, target_dist, _=False):
 
   ln_numsamp = np.log(lns.shape[0])
   lnz = jscipy.special.logsumexp(lns, axis=0)  - ln_numsamp
+
+  if debug: import pdb; pdb.set_trace()
   return -lnz
 
 
@@ -108,7 +110,7 @@ def dds_kl_objective(augmented_trajectory, *_, **__):
   return (loss).mean()
 
 
-def importance_weighted_partition_estimate(augmented_trajectory, g, trim=2, dim=2):
+def importance_weighted_partition_estimate(augmented_trajectory, g, dim=2):
   """See TODO.
 
   Args:
@@ -123,7 +125,7 @@ def importance_weighted_partition_estimate(augmented_trajectory, g, trim=2, dim=
 
   x_final_time = augmented_trajectory[:, -1, :dim]
 
-  stl = augmented_trajectory[:, -1, dim + 1]
+  stl = augmented_trajectory[:, -1, dim]
 
   terminal_cost = g(x_final_time)
   s_omega = -(energy_cost_dt + terminal_cost + stl)

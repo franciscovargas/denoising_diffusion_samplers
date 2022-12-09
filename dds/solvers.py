@@ -12,7 +12,7 @@ from dds.hutchinsons import get_div_fn
 
 
 def sdeint_ito_em_scan(
-    f, g, y0, rng, args=(), dt=1e-06, g_prod=None,
+    dim, f, g, y0, rng, args=(), dt=1e-06, g_prod=None,
     step_scheme=uniform_step_scheme, start=0, end=1, dtype=np.float32,
     scheme_args=None):
   """Vectorised (scan based) implementation of EM discretisation.
@@ -54,10 +54,13 @@ def sdeint_ito_em_scan(
 
     this_rng, rng = jax.random.split(rng)
     noise = jax.random.normal(this_rng, y_pas.shape, dtype=dtype)
-
-    y = y_pas + f(y_pas, t_pas, args) * delta_t + g_prod(
+    
+    f_full = f(y_pas, t_pas, args)
+    g_full =  g_prod(
         y_pas, t_pas, args, noise
-    ) * np.sqrt(delta_t)
+    ) 
+
+    y = y_pas + f_full * delta_t + g_full * np.sqrt(delta_t)
 
     # t_pas = t_
     # y_pas = y
@@ -125,16 +128,17 @@ def sdeint_ito_em_scan_ou(
     this_rng, rng = jax.random.split(rng)
     noise = jax.random.normal(this_rng, y_pas.shape, dtype=dtype)
 
-    y_pas_naug = y_pas[:, :dim]
+    y_pas_naug = jax.lax.stop_gradient(
+        y_pas[:, :dim]) if detach else y_pas[:, :dim]
     g_aug = g(y_pas, t_pas, args)
     f_aug = f(y_pas, t_pas, args)
 
     # State update
     y_naug = y_pas_naug * alpha_k + f_aug[:, :dim] * beta_k**2 + (
         g_aug[:, :dim] * noise[:, :dim]) * beta_k
-
+#     import pdb; pdb.set_trace()
     # Stoch int (detached STL term) update
-    u_dw = np.squeeze(y_pas[:, dim:-1]) + np.einsum(
+    u_dw = np.squeeze(y_pas[:, dim:dim + 1]) + np.einsum(
         "ij,ij->i", g_aug[:, dim:-1], noise[:, :dim]) * beta_k
 
     # Girsanov (quadratic) term update
@@ -142,8 +146,9 @@ def sdeint_ito_em_scan_ou(
     
     # For cross entropy refinement
     if detach:
-      f_aug_att = f(y_pas, t_pas, [])
+      f_aug_att = f(y_pas, t_pas, ["detach"])
       u_sq_att = y_pas[:, -1] + f_aug_att[:, -1] * beta_k**2
+      u_dw = jax.lax.stop_gradient(u_dw)
     else:
       u_sq_att = u_sq
 
