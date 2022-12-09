@@ -62,7 +62,9 @@ def relative_kl_objective(augmented_trajectory, g,
   return (energy_cost_dt + terminal_cost + stl).mean()
 
 
-def prob_flow_lnz(augmented_trajectory, eq_dist, target_dist, _=False, debug=False):
+def prob_flow_lnz(
+    augmented_trajectory, eq_dist,
+    target_dist, _=False, debug=False):
   """Vanilla relative KL control objective.
 
   Args:

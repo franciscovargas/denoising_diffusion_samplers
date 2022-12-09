@@ -170,7 +170,7 @@ def sdeint_ito_em_scan_ou(
 def odeint_em_scan_ou(
     dim, alpha, f, g, y0, rng, args=(), dt=1e-06,
     step_scheme=uniform_step_scheme, start=0, end=1, dtype=np.float32,
-    scheme_args=None, ddpm_param=True):
+    scheme_args=None, ddpm_param=True, exact=False):
   """Vectorised (scan based) implementation Exact OU based discretisation.
 
   Using this objective allows (and computes) a simplified Girsanov like ELBO
@@ -204,7 +204,7 @@ def odeint_em_scan_ou(
   t_pas = ts[0]
   _, _ = g, rng
 
-  f_div = get_div_fn(f, rng, y0[:, :dim].shape)
+  f_div = get_div_fn(f, rng, y0[:, :dim].shape, exact=exact)
 
   def euler_step(ytpas, t_):
     (y_pas, t_pas, k, rng) = ytpas

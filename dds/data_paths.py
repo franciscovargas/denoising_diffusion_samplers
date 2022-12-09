@@ -9,4 +9,4 @@ lr_sonar_path = path.join(data_path, "ionosphere_full.pkl")
 ion_path =  path.join(data_path, "sonar_full.pkl")
 vae_path= path.join(data_path, "vae.pickle")
 
-results_path = data_path = path.join(data_path, "results")
+results_path = path.join(data_path, "results")

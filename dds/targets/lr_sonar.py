@@ -30,8 +30,8 @@ def standardize_and_pad(x):
 
 
 def load_data(name="sonar_full.pkl"):
-  path = path.join(data_paths.data_path, name)
-  with open(path, mode="rb") as f:
+  path_ = path.join(data_paths.data_path, name)
+  with open(path_, mode="rb") as f:
     x, y = pickle.load(f)
   y = (y + 1) // 2
   x = standardize_and_pad(x)

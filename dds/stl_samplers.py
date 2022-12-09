@@ -1,6 +1,7 @@
 """Module containing sampler objects.
 """
 from typing import Union
+from functools import partial
 
 import haiku as hk
 
@@ -64,11 +65,12 @@ class AugmentedBrownianFollmerSDESTL(hk.Module):
 
   def __call__(
       self, batch_size, is_training=True,
-      dt=None, ode=False):
+      dt=None, ode=False, exact=False):
     key = hk.next_rng_key()
     dt = self.dt if dt is None or is_training else dt
     return self.sample_aug_trajectory(
-        batch_size, key, dt=dt, is_training=is_training, ode=ode)
+        batch_size, key, dt=dt, is_training=is_training,
+        ode=ode, exact=exact)
 
   def init_sample(self, n, key):
     r"""Initialises Y_0 for the SDE to \\delta_0 (Pinned Brownain Motion).
@@ -369,7 +371,7 @@ class AugmentedOUDFollmerSDESTL(AugmentedBrownianFollmerSDESTL):
     return out
 
   def sample_aug_trajectory(
-      self, batch_size, key, dt=0.05, rng=None, ode=False, **_):
+      self, batch_size, key, dt=0.05, rng=None, ode=False,  exact=False, **_):
     y0 = self.init_sample(batch_size, key)
 
     zeros = np.zeros((batch_size, 1))
@@ -382,7 +384,7 @@ class AugmentedOUDFollmerSDESTL(AugmentedBrownianFollmerSDESTL):
     # notice no g_prod as that is handled internally by this specialised
     # ou based sampler.
     ddpm_param = not self.exp_bool
-    integrator = odeint_em_scan_ou if ode else sdeint_ito_em_scan_ou
+    integrator = partial(odeint_em_scan_ou, exact=exact) if ode else sdeint_ito_em_scan_ou
 
     param_trajectory, ts = integrator(
         self.dim, self.alpha, self.f_aug, self.g_aug, y0_aug, key, dt=dt,

@@ -176,14 +176,14 @@ def train_dds(
 
   def _forward_fn(batch_size: int,
                   training: bool = True,
-                  ode=False, dt_=dt) -> jnp.ndarray:
+                  ode=False, exact=False, dt_=dt) -> jnp.ndarray:
 
     model_def = ref_proc(
         sigma, data_dim, drift_network, tfinal=tfinal, dt=dt_,
         step_scheme=step_scheme, alpha=alpha, target=target, tpu=tpu,
         detach_stl_drift=detach_stl_drift, diff_net=None,
         detach_dritf_path=detach_dritf_path, detach_dif_path=detach_dif_path,
-        m=m, log=config.model.log, exp_bool=config.model.exp_dds
+        m=m, log=config.model.log, exp_bool=config.model.exp_dds, exact=exact
     )
 
     return model_def(batch_size, training, ode=ode)
@@ -222,12 +222,12 @@ def train_dds(
   opt_state = jax.pmap(opt.init)(trainable_params)
 
   @functools.partial(
-      jax.pmap, axis_name="num_devices", static_broadcasted_argnums=(3, 4, 5))
+      jax.pmap, axis_name="num_devices", static_broadcasted_argnums=(3, 4, 5, 6))
   def forward_fn_jit(
       params,
       model_state: hk.State,
       subkeys: jnp.ndarray,
-      batch_size: jnp.ndarray, ode=False, dt_=dt):
+      batch_size: jnp.ndarray, ode=False, exact=False,  dt_=dt):
 
     samps, _ = forward_fn.apply(
         params,
@@ -235,7 +235,7 @@ def train_dds(
         subkeys,
         int(batch_size / device_no),
         False,
-        ode=ode, dt_=dt_)
+        ode=ode, exact=exact, dt_=dt_)
     samps = jax.device_get(samps)
 
     augmented_trajectory, ts = samps
@@ -245,10 +245,10 @@ def train_dds(
       params,
       model_state: hk.State,
       rng_key: jnp.ndarray,
-      batch_size: jnp.ndarray, ode=False, dt_=dt):
+      batch_size: jnp.ndarray, ode=False, exact=False, dt_=dt):
     subkeys = jax.random.split(rng_key, device_no)
     (augmented_trajectory, ts), _ = forward_fn_jit(params, model_state,
-                                                   subkeys, batch_size, ode,
+                                                   subkeys, batch_size, ode, exact,
                                                    dt_)
 
     dv, ns, t, _ = augmented_trajectory.shape
@@ -264,11 +264,12 @@ def train_dds(
       is_training: bool = True,
       ode: bool = False,
       stl: bool = False,
+      exact: bool = False,
     ):
 
     params = hk.data_structures.merge(trainable_params, non_trainable_params)
     (augmented_trajectory, _), model_state = forward_fn.apply(
-        params, model_state, rng_key, batch_size, True, ode
+        params, model_state, rng_key, batch_size, True, ode, exact
     )
 
     # import pdb; pdb.set_trace()
@@ -312,7 +313,7 @@ def train_dds(
     return new_params, opt_state, new_model_state
 
   @functools.partial(
-      jax.pmap, axis_name="num_devices", static_broadcasted_argnums=(4, 5, 6))
+      jax.pmap, axis_name="num_devices", static_broadcasted_argnums=(4, 5, 6, 7))
   def jited_val_loss(
       trainable_params,
       non_trainable_params,
@@ -320,7 +321,8 @@ def train_dds(
       rng_key: jnp.ndarray,
       batch_size: jnp.ndarray,
       is_training: bool = True,
-      ode: bool = False):
+      ode: bool = False,
+      exact: bool = False):
 
     loss, new_model_state = full_objective(
         trainable_params,
@@ -329,7 +331,7 @@ def train_dds(
         rng_key,
         batch_size,
         is_training=is_training, ode=ode,
-        stl=False)
+        stl=False, exact=exact)
 
     loss = jax.lax.pmean(loss, axis_name="num_devices")
     return loss, new_model_state
@@ -346,11 +348,12 @@ def train_dds(
       is_training: bool = True,
       print_flag: bool = False,
       ode: bool = False,
+      exact: bool = False,
   ) -> None:
 
     loss, model_state = jited_val_loss(
         trainable_params, non_trainable_params,
-        model_state, rng_key, batch_size, is_training, ode)
+        model_state, rng_key, batch_size, is_training, ode, exact)
     loss = jax.device_get(loss)
     loss = onp.asarray(utils.get_first(loss).item()).item()
 
@@ -440,7 +443,7 @@ def train_dds(
         i,
         pf_writer_eval,
         loss_list_pf_eval,
-        is_training=False, ode=True)
+        is_training=False, ode=True, exact=False)
 
   params = hk.data_structures.merge(trainable_params, non_trainable_params)
   if config.trainer.timer:
@@ -454,7 +457,10 @@ def train_dds(
                                                  samps)
 
   (augmented_trajectory_det, _), _ = forward_fn_wrap(params, model_state,
-                                                     rng_key, samps, True)
+                                                     rng_key, samps, True, False)
+    
+  (augmented_trajectory_det_ext, _), _ = forward_fn_wrap(params, model_state,
+                                                         rng_key, samps, True, True)
 
 
   results_dict = {
@@ -465,7 +471,8 @@ def train_dds(
       "is_eval": loss_list_is_eval,
       "pf_eval": loss_list_pf_eval,
       "aug": augmented_trajectory,
-      "aug_ode": augmented_trajectory_det
+      "aug_ode": augmented_trajectory_det,
+      "aug_ode_ext": augmented_trajectory_det_ext
   }
   return params, model_state, forward_fn_wrap, rng_key, results_dict
 
