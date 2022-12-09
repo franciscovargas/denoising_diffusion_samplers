@@ -144,17 +144,23 @@ def sdeint_ito_em_scan_ou(
     # Girsanov (quadratic) term update
     u_sq = y_pas[:, -1] + f_aug[:, -1] * beta_k**2
     
-    # For cross entropy refinement
+    # For cross entropy refinement (pice estimator)
     if detach:
-      f_aug_att = f(y_pas, t_pas, ["detach"])
-      u_sq_att = y_pas[:, -1] + f_aug_att[:, -1] * beta_k**2
-      u_dw = jax.lax.stop_gradient(u_dw)
+      f_aug_det = f(y_pas, t_pas, ["detach"])
+      g_aug_det = g(y_pas, t_pas, ["detach"])
+      dot = (f_aug[:, :dim] * f_aug_det[:, :dim]).sum(axis=-1)
+
+      v_dw =  np.einsum(
+        "ij,ij->i", g_aug_det[:, dim:-1], noise[:, :dim]) * beta_k
+      
+      log_is_weight = y_pas[:, -2] + f_aug_det[:, -1] * beta_k**2
+      log_is_weight += v_dw  + dot *  beta_k**2
     else:
-      u_sq_att = u_sq
+      log_is_weight = u_sq
 
     y = np.concatenate((y_naug,
                         u_dw[..., None],
-                        u_sq_att[..., None],
+                        log_is_weight[..., None],
                         u_sq[..., None]), axis=-1)
 
     # t_pas = t_
