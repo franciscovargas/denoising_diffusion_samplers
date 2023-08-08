@@ -6,6 +6,7 @@ configs in the config directory.
 import distrax
 import jax
 
+import os
 from jax import numpy as np
 
 from ml_collections import config_dict as configdict
@@ -45,17 +46,12 @@ from dds.targets import toy_targets
 from dds.udp_samplers import AugmentedOUDFollmerSDEUDP
 
 
-def get_config():
+def get_config() -> configdict.ConfigDict:
   """Setup base config see /configs for more details."""
 
   config = configdict.ConfigDict()
   config.task = "no_name"
 
-  config.model = configdict.ConfigDict()
-  config.dataset = configdict.ConfigDict()
-  config.trainer = configdict.ConfigDict()
-
-  config = configdict.ConfigDict()
   config.model = configdict.ConfigDict()
   config.dataset = configdict.ConfigDict()
   config.trainer = configdict.ConfigDict()
@@ -139,10 +135,16 @@ def get_config():
 
   config.eval = configdict.ConfigDict()
   config.eval.seeds = 30
+
+  config.wandb = configdict.ConfigDict()
+  config.wandb.project = "dds"
+  config.wandb.entity = "shreyaspadhy"
+  config.wandb.code_dir = os.getcwd()
+  config.wandb.log = True
   return config
 
 
-def set_task(config, task="lr_sonar"):
+def set_task(config: configdict.ConfigDict, task: str="lr_sonar") -> configdict.ConfigDict:
   """Sets up task specific attributes for config.
 
   Args:
