@@ -152,3 +152,46 @@ def importance_weighted_partition_estimate_dds(augmented_trajectory, _):
   ln_numsamp = np.log(loss.shape[0])
   lnz = jscipy.special.logsumexp(-loss, axis=0)  - ln_numsamp
   return - lnz
+
+def controlled_importance_weighted_partition_estimate_dds(augmented_trajectory, _):
+  """Logsumexp IS estimator for dds.
+
+  Args:
+      augmented_trajectory:  tuple with trajectory and dds loss
+
+  Returns:
+      smoothed crosent control loss
+  """
+
+  _, loss = augmented_trajectory
+
+  ln_numsamp = np.log(loss.shape[0])
+  lnz = jscipy.special.logsumexp(-loss, axis=0)  - ln_numsamp
+  return - lnz
+
+def controlled_relative_kl_objective(augmented_trajectory, g,
+                                     stl=False, trim=2, dim=2):
+  """Vanilla relative KL control objective.
+
+  Args:
+      augmented_trajectory: X_{1:T} samples with ||u_t||^2/gamma as dim d+1
+      g: terminal cost function typically - ln dπ/dp_1
+      stl: boolean marking stl estimator usage
+      trim: size of the augmented state space
+
+  Returns:
+      kl control loss
+  """
+  print(augmented_trajectory.shape)
+  energy_cost_dt = augmented_trajectory[:, -1, 1]
+  x_final_time = augmented_trajectory[:, -1, :dim]
+  x_initial_time = augmented_trajectory[:, 0, dim:2 * dim]
+
+  # TODO: Finish up the Objective call here.
+
+  # import pdb; pdb.set_trace()
+
+  stl = augmented_trajectory[:, -1, 2 * dim] if stl else 0
+
+  terminal_cost = g(x_final_time)
+  return (energy_cost_dt + terminal_cost + stl).mean()

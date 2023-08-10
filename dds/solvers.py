@@ -2,13 +2,16 @@
 """
 import haiku as hk
 import jax
-
+import jax.numpy as jnp
 from jax import numpy as np
-# from jax.experimental import ode
 
 from dds.discretisation_schemes import uniform_step_scheme
-
 from dds.hutchinsons import get_div_fn
+
+# from jax.experimental import ode
+
+
+
 
 
 def sdeint_ito_em_scan(
@@ -70,6 +73,8 @@ def sdeint_ito_em_scan(
   _, ys = hk.scan(euler_step, (y_pas, t_pas, rng), ts[1:])
 
   return np.swapaxes(np.concatenate((y0[None], ys), axis=0), 0, 1), ts
+
+
 
 
 def sdeint_ito_em_scan_ou(
@@ -485,3 +490,81 @@ def sdeint_udp_ito_em_scan_ou_logged(
   _, ys = hk.scan(euler_step, (y_pas, t_pas, k_pas, rng), ts[1:])
 
   return np.swapaxes(np.concatenate((y0[None], ys), axis=0), 0, 1), ts
+
+
+
+def controlled_sdeint_ito_em_scan(
+    dim, f, b, g, y0, rng, gamma, args=(), dt=1e-06, g_prod=None,
+    step_scheme=uniform_step_scheme, start=0, end=1, dtype=np.float32,
+    scheme_args=None):
+  """Vectorised (scan based) implementation of EM discretisation.
+
+  Args:
+    f: drift coeficient - vector field
+    b: drift coeficient for backward diffusion
+    g: diffusion coeficient
+    y0: samples from initial dist
+    rng: rng key
+    args: optional arguments for f and g
+    dt: discertisation step
+    g_prod: multiplication routine for diff coef / noise, defaults to hadamard
+    step_scheme: how to spread out the integration steps defaults to uniform
+    start: start time defaults to 0
+    end: end time defaults to 1
+    dtype: float32 or 64 (for tpu)
+    scheme_args: args for step scheme
+
+  Returns:
+    Trajectory augmented with the path objective (Time x batch_size x (dim + 1))
+  """
+
+  scheme_args = scheme_args if scheme_args is not None else {}
+  if g_prod is None:
+
+    def g_prod(y, t, args, noise):
+      out = g(y, t, args) * noise
+      return out
+
+  ts = step_scheme(start, end, dt, dtype=dtype, **scheme_args)
+
+  y_pas = y0
+  l_pas = jnp.zeros(y0.shape[0], 1)
+  z_pas = jnp.zeros(y0.shape[0], 1)
+
+  y0_aug = (y_pas, l_pas, z_pas)
+  t_pas = ts[0]
+
+  def euler_step(ytpas, t_):
+    (y_pas, l_pas, z_pas, t_pas, rng) = ytpas
+
+    delta_t = t_ - t_pas
+
+    this_rng, rng = jax.random.split(rng)
+    noise = jax.random.normal(this_rng, y_pas.shape, dtype=dtype)
+    
+    f_full = f(y_pas, t_pas, args)
+    g_full =  g_prod(
+        y_pas, t_pas, args, noise
+    ) 
+
+
+    delta_y = f_full[:, :dim] * delta_t + g_full[:, :dim] * np.sqrt(delta_t)
+    y = y_pas + delta_y
+    b_full = b(y, t_, args)
+
+
+
+    coef = 1. / (2. * jnp.sqrt(delta_t) * gamma)
+
+
+    l = l_pas + coef * jnp.linalg.norm(b_full[:, :dim] - -delta_y)
+
+    z = z_pas + coef * jnp.linalg.norm(delta_y - f_full[:, :dim])
+    # t_pas = t_
+    # y_pas = y
+    out = (y, l, z, t_, rng)
+    return out, y
+
+  _, ys = hk.scan(euler_step, (y_pas, l_pas, z_pas, t_pas, rng), ts[1:])
+
+  return np.swapaxes(np.concatenate((y0_aug, ys), axis=0), 0, 1), ts

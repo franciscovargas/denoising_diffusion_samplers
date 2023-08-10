@@ -14,7 +14,7 @@ from dds.drift_nets import OUDrift
 from dds.solvers import odeint_em_scan_ou
 from dds.solvers import sdeint_ito_em_scan
 from dds.solvers import sdeint_ito_em_scan_ou
-
+from dds.solvers import controlled_sdeint_ito_em_scan
 
 class AugmentedBrownianFollmerSDESTL(hk.Module):
   """Basic pinned brownian motion prior STL based sampler. This implements PIS.
@@ -194,7 +194,6 @@ class AugmentedBrownianFollmerSDESTL(hk.Module):
     )
 
     return param_trajectory, ts
-
 
 class AugmentedOUFollmerSDESTL(AugmentedBrownianFollmerSDESTL):
   """Basic stationary OU prior based sampler (stl augmented).
@@ -389,6 +388,240 @@ class AugmentedOUDFollmerSDESTL(AugmentedBrownianFollmerSDESTL):
     param_trajectory, ts = integrator(
         self.dim, self.alpha, self.f_aug, self.g_aug, y0_aug, key, dt=dt,
         end=self.tfinal, step_scheme=self.step_scheme, ddpm_param=ddpm_param,
+        dtype=self.dtype
+    )
+
+    return param_trajectory, ts
+
+
+class AugmentedControlledBrownianFollmerSDESTL(hk.Module):
+  """Basic pinned brownian motion prior STL based sampler. This implements PIS.
+  """
+  alpha: Union[float, np.ndarray]
+  sigma: Union[float, np.ndarray]
+  dim: int
+
+  # drift_network #: Callable[[], hk.Module]
+
+  def __init__(
+      self, sigma, dim, drift_network, tfinal=1, dt=0.05, target=None,
+      step_fac=100, step_scheme=uniform_step_scheme,
+      alpha=1, detach_dif_path=False, detach_stl_drift=False,
+      detach_dritf_path=False, tpu=True, diff_net=None,
+      name="Augmented_controlled_sampler", **_
+  ):
+    super().__init__(name=name)
+
+    self.gamma = (sigma)**2
+
+    self.dtype = np.float32 if tpu else np.float64
+
+    self.dim = dim
+    self.drift_network = drift_network()
+    
+    self.step_scheme = step_scheme
+
+    self.tfinal = tfinal
+    self.dt = dt
+
+    self.lgv_clip = self.drift_network.lgv_clip
+    # \pi
+    self.lnp0 = self.drift_network.architecture_specs.source
+    self.target = target  # Target distribution used by networks
+
+    # Linear Beta
+    self.betas = lambda t: 1 - t / self.tfinal
+
+    # flags which can be useful for different estimators (e.g. CE, Vargrad etc)
+    self.detach_drift_path = detach_dritf_path  # Useful for CE/Vargrad
+    self.detach_dif_path = detach_dif_path      # Useful for CE/Vargrad
+    self.detach_drift_stoch = detach_stl_drift  # For STL estimator
+
+    # Detached network for STL estimator
+    self.detached_drift = self.drift_network.__class__(
+        architecture_specs=self.drift_network.architecture_specs,
+        dim=self.drift_network.state_dim,
+        name="stl_detach"
+    )
+
+    # For annealing purposes in the detached network
+    self.detached_drift.ts = self.step_scheme(
+        0, self.tfinal, self.dt, dtype=self.dtype,
+        **dict())
+
+  def logp_beta(self, x, t):
+    betas_t = self.betas(t)
+    return self.target(x) * betas_t + self.lnp0(x) * (1. - betas_t)
+
+  def __call__(
+      self, batch_size, is_training=True,
+      dt=None, ode=False, exact=False):
+    key = hk.next_rng_key()
+    dt = self.dt if dt is None or is_training else dt
+    return self.sample_aug_trajectory(
+        batch_size, key, dt=dt, is_training=is_training,
+        ode=ode, exact=exact)
+
+  def init_sample(self, n, key):
+    r"""Initialises Y_0 for the SDE to \\delta_0 (Pinned Brownain Motion).
+
+    Args:
+      n: number of samples (e.g. number of samples to estimate elbo)
+      key: random key.
+
+    Returns:
+      initialisation array.
+    """
+    return np.zeros((n, self.dim))
+
+  def f_aug(self, y, t, args):
+    """Computes the drift of the SDE + augmented state space for loss.
+
+    Computes drift and auxiliary variables for the SDE:
+              dY_t = drift(Y_t,t)dt + gamma(t) dW_t
+
+    Args:
+      y: state spaces at times t.
+      t: times corresponding to each y.
+      args: unused (atm) empty placeholder (useful for some solvers).
+
+    Returns:
+      Augmented statespace of the form [drift(y,t), 0, ||drift(y,t)||^2/(2*C^2)]
+    """
+    t_ = t * np.ones((y.shape[0], 1))
+
+    y_no_aug = y[..., :self.dim]
+
+    u_t = self.drift_network(y_no_aug, t_, self.target)
+
+    # Using score information as a feature
+    grad_lnpi_beta = hk.grad(lambda _x: self.logp_beta(_x, t_).sum())(y_no_aug)
+    grad_lnpi_beta = np.clip(grad_lnpi_beta, -self.lgv_clip, self.lgv_clip)
+
+    u_t += self.gamma * grad_lnpi_beta
+
+    gamma_t = self.g_aug(y, t, args)[..., :self.dim]**2
+
+    u_t_normsq = ((u_t)**2 / gamma_t).sum(axis=-1)[..., None] / 2.0
+
+    n, _ = y_no_aug.shape
+    zeros = np.zeros((n, 1))
+
+    return np.concatenate((u_t, zeros, u_t_normsq), axis=-1)
+  
+  def b_aug(self, y, t, args):
+    """Computes the drift of the SDE + augmented state space for loss.
+
+    Computes drift and auxiliary variables for the SDE:
+              dY_t = drift(Y_t,t)dt + gamma(t) dW_t
+
+    Args:
+      y: state spaces at times t.
+      t: times corresponding to each y.
+      args: unused (atm) empty placeholder (useful for some solvers).
+
+    Returns:
+      Augmented statespace of the form [drift(y,t), 0, ||drift(y,t)||^2/(2*C^2)]
+    """
+    t_ = t * np.ones((y.shape[0], 1))
+
+    y_no_aug = y[..., :self.dim]
+
+    u_t = self.drift_network(y_no_aug, t_, self.target)
+
+    # Using score information as a feature
+    grad_lnpi_beta = hk.grad(lambda _x: self.logp_beta(_x, t_).sum())(y_no_aug)
+    grad_lnpi_beta = np.clip(grad_lnpi_beta, -self.lgv_clip, self.lgv_clip)
+
+    u_t -= self.gamma * grad_lnpi_beta
+
+    gamma_t = self.g_aug(y, t, args)[..., :self.dim]**2
+
+    u_t_normsq = ((u_t)**2 / gamma_t).sum(axis=-1)[..., None] / 2.0
+
+    n, _ = y_no_aug.shape
+    zeros = np.zeros((n, 1))
+
+    return np.concatenate((u_t, zeros, u_t_normsq), axis=-1)
+
+
+  def g_aug(self, y, t, args):
+    r"""Computes the diff coefficient of the SDE+augmented state space for loss.
+
+    Computes drift and auxiliary variables for the SDE:
+              dY_t = drift(Y_t,t)dt + gamma_t dW_t
+
+    Args:
+      y: state spaces at times t.
+      t: times corresponding to each y.
+      args: unused (atm) empty placeholder (useful for some solvers).
+
+    Returns:
+      Augmented statespace of the form. [\gamma(t), drift(y,t)/C, 0]
+    """
+
+    t_ = t * np.ones((y.shape[0], 1))
+    y_no_aug = y[..., :self.dim]
+
+    n, _ = y_no_aug.shape
+
+    # gamma(t) = gamma (homegenous diff for first d dimensions).
+    gamma_ = np.sqrt(self.gamma) * np.ones_like(y_no_aug)
+
+    zeros = np.zeros((n, 1))  # for last dimmension (which is noiseless)
+
+    # stl vs no stl, here we compute drift(y,t) for the dim:2*dim-1 locs of
+    # the augmented state space (drift(y,t)/C).
+    if self.detach_drift_stoch:
+      u_t = self.detached_drift(y_no_aug, t_, self.target)
+    else:
+      u_t = self.drift_network(y_no_aug, t_, self.target)
+
+    out = np.concatenate((gamma_, u_t / gamma_, zeros), axis=-1)
+
+    return out
+
+  def sample_aug_trajectory(self, batch_size, key, dt=0.05, rng=None, **_):
+    y0 = self.init_sample(batch_size, key)
+
+    zeros = np.zeros((batch_size, 1))
+    y0_aug = np.concatenate((y0, zeros, zeros), axis=1)
+
+    def g_prod(y, t, args, noise):
+      """Defines how to compute the product between the aug diff coef and noise.
+
+      This function specifies how the brownian noise is multiplied with the
+      augmented noise state space defined by g_aug. This is used by the approac-
+      hes based on euler approx (sdeint_ito_em_scan), for ou solvers this
+      behaviour was reimplemented inside the solver.
+
+      Args:
+        y: state spaces at times t.
+        t: times corresponding to each y.
+        args: unused (atm) empty placeholder (useful for some solvers).
+        noise: brownian noise (to be passed in solver).
+
+      Returns:
+        Returns g_aug(Y_t, t) * dW_t
+      """
+      g_aug = self.g_aug(y, t, args)
+
+      # We assume diagonal noise and thus g(t) dW_t is elementwise
+      gdw = g_aug[:, :self.dim] * noise[:, :self.dim]
+
+      # here we compute drift(Y_t, t)^T dW_t (needed for the IS refinement)
+      udw = np.einsum("ij,ij->i",
+                      g_aug[:, self.dim:-1],
+                      noise[:, :self.dim])
+
+      # the last coordinate is a 0 as it evolves ||u(Y_t,t)||^2/C noiselessly
+      zeros = 0.0 * g_aug[:, -1] * noise[:, -1]
+
+      return  np.concatenate((gdw, udw[..., None], zeros[..., None]), axis=-1)
+
+    param_trajectory, ts = controlled_sdeint_ito_em_scan(
+        self.dim, self.f_aug, self.b_aug, self.g_aug, y0_aug, key, self.sigma, dt=dt,
+        g_prod=g_prod, end=self.tfinal, step_scheme=self.step_scheme,
         dtype=self.dtype
     )
 
