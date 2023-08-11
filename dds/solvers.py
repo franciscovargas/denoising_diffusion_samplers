@@ -528,14 +528,13 @@ def controlled_ais_sdeint_ito_em_scan(
   ts = step_scheme(start, end, dt, dtype=dtype, **scheme_args)
 
   y_pas = y0
-  l_pas = jnp.zeros(y0.shape[0], 1)
-  z_pas = jnp.zeros(y0.shape[0], 1)
+#   l_pas = jnp.zeros((y0.shape[0], 1))
+#   z_pas = jnp.zeros((y0.shape[0], 1))
 
-  y0_aug = (y_pas, l_pas[..., None], z_pas[..., None])
   t_pas = ts[0]
 
   def euler_step(ytpas, t_):
-    (y_pas, l_pas, z_pas, t_pas, rng) = ytpas
+    (y_pas, t_pas, rng) = ytpas
 
     delta_t = t_ - t_pas
 
@@ -548,26 +547,26 @@ def controlled_ais_sdeint_ito_em_scan(
     ) 
 
 
-    delta_y = f_full[:, :dim] * delta_t + g_full * np.sqrt(delta_t)
-    y = y_pas + delta_y
+    delta_y = f_full[:, :dim] * delta_t + g_full[:, :dim] * np.sqrt(delta_t)
+    y = y_pas[:, :dim] + delta_y
     b_full = b(y, t_, args)
 
 
-    print(f_full, b_full, g_full, delta_t)
+#     print(f_full, b_full, g_full, delta_t)
     coef = 1. / (2. * jnp.sqrt(delta_t) * gamma)
 
     bdelta = b_full[:, :dim] * delta_t - delta_y
-    l = l_pas + coef * ((bdelta)**2).sum(dim=-1)
+    l = y_pas[:,dim] + coef * ((bdelta)**2).sum(axis=-1)
     
     fdelta = delta_y - delta_t * f_full[:, :dim]
-    z = z_pas + coef * ((fdelta)**2).sum(dim=-1)
+    z = y_pas[:,dim+1] + coef * ((fdelta)**2).sum(axis=-1)
 
     y_aug = np.concatenate((y, l[..., None], z[..., None]), axis=-1)
     # t_pas = t_
     # y_pas = y
-    out = (y, l, z, t_, rng)
+    out = (y_aug, t_, rng)
     return out, y_aug
 
-  _, ys_aug = hk.scan(euler_step, (y_pas, l_pas, z_pas, t_pas, rng), ts[1:])
+  _, ys_aug = hk.scan(euler_step, (y_pas, t_pas, rng), ts[1:])
 
-  return np.swapaxes(np.concatenate((y0_aug, ys_aug), axis=0), 0, 1), ts
+  return np.swapaxes(np.concatenate((y0[None], ys_aug), axis=0), 0, 1), ts

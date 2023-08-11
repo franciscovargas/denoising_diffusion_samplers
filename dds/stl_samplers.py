@@ -413,6 +413,7 @@ class AugmentedControlledAIS(hk.Module):
     super().__init__(name=name)
 
     self.gamma = (sigma)**2
+    self.sigma = sigma
 
     self.dtype = np.float32 if tpu else np.float64
 
@@ -473,8 +474,8 @@ class AugmentedControlledAIS(hk.Module):
     Returns:
       initialisation array.
     """
-    sample = self.source_obj.sample(key, sample_shape=(n,))
-    print(f'sample shape : ', sample.shape)
+    sample = self.source_obj.sample(seed=key, sample_shape=(n,))
+#     print(f'sample shape : ', sample.shape)
     return sample
 
 
@@ -581,8 +582,8 @@ class AugmentedControlledAIS(hk.Module):
     else:
       u_t = self.drift_network(y_no_aug, t_, self.target)
 
-    out = sigma_
-
+#     out = sigma_
+    out = np.concatenate((sigma_, zeros, zeros), axis=-1)
     return out
 
   def sample_aug_trajectory(self, batch_size, key, dt=0.05, rng=None, **_):
@@ -592,7 +593,7 @@ class AugmentedControlledAIS(hk.Module):
     y0_aug = np.concatenate((y0, zeros, zeros), axis=1)
 
     param_trajectory, ts = controlled_ais_sdeint_ito_em_scan(
-        self.dim, self.f_aug, self.b_aug, self.g_aug, y0_aug, key, self.sigma ** 2, dt=dt,
+        self.dim, self.f_aug, self.b_aug, self.g_aug, y0_aug, key, self.gamma, dt=dt,
         g_prod=None, end=self.tfinal, step_scheme=self.step_scheme,
         dtype=self.dtype
     )
