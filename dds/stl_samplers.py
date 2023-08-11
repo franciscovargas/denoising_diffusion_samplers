@@ -570,7 +570,7 @@ class AugmentedControlledAIS(hk.Module):
     n, _ = y_no_aug.shape
 
     # gamma(t) = gamma (homegenous diff for first d dimensions).
-    gamma_ = np.sqrt(self.gamma) * np.ones_like(y_no_aug)
+    sigma_ = np.sqrt(self.gamma) * np.ones_like(y_no_aug)
 
     zeros = np.zeros((n, 1))  # for last dimmension (which is noiseless)
 
@@ -581,7 +581,7 @@ class AugmentedControlledAIS(hk.Module):
     else:
       u_t = self.drift_network(y_no_aug, t_, self.target)
 
-    out = gamma_
+    out = sigma_
 
     return out
 
