@@ -553,7 +553,7 @@ def controlled_ais_sdeint_ito_em_scan(
 
 
 #     print(f_full, b_full, g_full, delta_t)
-    coef = 1. / (2. * jnp.sqrt(delta_t) * gamma)
+    coef = 1. / (2. * jnp.sqrt(delta_t) * gamma + 1e-6)
 
     bdelta = b_full[:, :dim] * delta_t - delta_y
     l = y_pas[:,dim] + coef * ((bdelta)**2).sum(axis=-1)
