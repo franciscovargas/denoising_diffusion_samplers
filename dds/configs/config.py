@@ -36,10 +36,13 @@ from dds.objectives import importance_weighted_partition_estimate
 from dds.objectives import ou_terminal_loss
 from dds.objectives import prob_flow_lnz
 from dds.objectives import relative_kl_objective
+from dds.objectives import controlled_ais_relative_kl_objective
+from dds.objectives import controlled_ais_importance_weighted_partition_estimate_dds
 
 from dds.stl_samplers import AugmentedBrownianFollmerSDESTL
 from dds.stl_samplers import AugmentedOUDFollmerSDESTL
 from dds.stl_samplers import AugmentedOUFollmerSDESTL
+from dds.stl_samplers import AugmentedControlledAIS
 
 from dds.targets import toy_targets
 
@@ -107,6 +110,7 @@ def get_config() -> configdict.ConfigDict:
   config.model.reference_process_dict.oudstl = AugmentedOUDFollmerSDESTL
   config.model.reference_process_dict.pisstl = AugmentedBrownianFollmerSDESTL
   config.model.reference_process_dict.oududp = AugmentedOUDFollmerSDEUDP
+  config.model.reference_process_dict.caise = AugmentedControlledAIS
 
   config.model.sigma = 0.25
   config.model.alpha = 0.5

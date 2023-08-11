@@ -96,9 +96,10 @@ def train_dds(
     m = config.model.m
     
     # post setup model vars
-    config.model.source = distrax.MultivariateNormalDiag(
+    config.model.source_obj = distrax.MultivariateNormalDiag(
         jnp.zeros(config.model.input_dim),
-        config.model.sigma * jnp.ones(config.model.input_dim)).log_prob
+        config.model.sigma * jnp.ones(config.model.input_dim))
+    config.model.source = config.model.source_obj.log_prob
 
     batch_size_ = int(config.model.batch_size / device_no)
     batch_size_elbo = int(config.model.elbo_batch_size / device_no)

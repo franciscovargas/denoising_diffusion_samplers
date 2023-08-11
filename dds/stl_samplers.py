@@ -14,7 +14,7 @@ from dds.drift_nets import OUDrift
 from dds.solvers import odeint_em_scan_ou
 from dds.solvers import sdeint_ito_em_scan
 from dds.solvers import sdeint_ito_em_scan_ou
-from dds.solvers import controlled_sdeint_ito_em_scan
+from dds.solvers import controlled_ais_sdeint_ito_em_scan
 
 class AugmentedBrownianFollmerSDESTL(hk.Module):
   """Basic pinned brownian motion prior STL based sampler. This implements PIS.
@@ -394,7 +394,7 @@ class AugmentedOUDFollmerSDESTL(AugmentedBrownianFollmerSDESTL):
     return param_trajectory, ts
 
 
-class AugmentedControlledBrownianFollmerSDESTL(hk.Module):
+class AugmentedControlledAIS(hk.Module):
   """Basic pinned brownian motion prior STL based sampler. This implements PIS.
   """
   alpha: Union[float, np.ndarray]
@@ -426,6 +426,7 @@ class AugmentedControlledBrownianFollmerSDESTL(hk.Module):
 
     self.lgv_clip = self.drift_network.lgv_clip
     # \pi
+    self.source_obj = self.drift_network.architecture_specs.source_obj
     self.lnp0 = self.drift_network.architecture_specs.source
     self.target = target  # Target distribution used by networks
 
@@ -472,7 +473,8 @@ class AugmentedControlledBrownianFollmerSDESTL(hk.Module):
     Returns:
       initialisation array.
     """
-    return np.zeros((n, self.dim))
+    return self.source_obj.sample(key, sample_shape=(n,))
+
 
   def f_aug(self, y, t, args):
     """Computes the drift of the SDE + augmented state space for loss.
@@ -577,7 +579,7 @@ class AugmentedControlledBrownianFollmerSDESTL(hk.Module):
     else:
       u_t = self.drift_network(y_no_aug, t_, self.target)
 
-    out = np.concatenate((gamma_, u_t / gamma_, zeros), axis=-1)
+    out = gamma_
 
     return out
 
@@ -587,41 +589,9 @@ class AugmentedControlledBrownianFollmerSDESTL(hk.Module):
     zeros = np.zeros((batch_size, 1))
     y0_aug = np.concatenate((y0, zeros, zeros), axis=1)
 
-    def g_prod(y, t, args, noise):
-      """Defines how to compute the product between the aug diff coef and noise.
-
-      This function specifies how the brownian noise is multiplied with the
-      augmented noise state space defined by g_aug. This is used by the approac-
-      hes based on euler approx (sdeint_ito_em_scan), for ou solvers this
-      behaviour was reimplemented inside the solver.
-
-      Args:
-        y: state spaces at times t.
-        t: times corresponding to each y.
-        args: unused (atm) empty placeholder (useful for some solvers).
-        noise: brownian noise (to be passed in solver).
-
-      Returns:
-        Returns g_aug(Y_t, t) * dW_t
-      """
-      g_aug = self.g_aug(y, t, args)
-
-      # We assume diagonal noise and thus g(t) dW_t is elementwise
-      gdw = g_aug[:, :self.dim] * noise[:, :self.dim]
-
-      # here we compute drift(Y_t, t)^T dW_t (needed for the IS refinement)
-      udw = np.einsum("ij,ij->i",
-                      g_aug[:, self.dim:-1],
-                      noise[:, :self.dim])
-
-      # the last coordinate is a 0 as it evolves ||u(Y_t,t)||^2/C noiselessly
-      zeros = 0.0 * g_aug[:, -1] * noise[:, -1]
-
-      return  np.concatenate((gdw, udw[..., None], zeros[..., None]), axis=-1)
-
-    param_trajectory, ts = controlled_sdeint_ito_em_scan(
+    param_trajectory, ts = controlled_ais_sdeint_ito_em_scan(
         self.dim, self.f_aug, self.b_aug, self.g_aug, y0_aug, key, self.sigma, dt=dt,
-        g_prod=g_prod, end=self.tfinal, step_scheme=self.step_scheme,
+        g_prod=None, end=self.tfinal, step_scheme=self.step_scheme,
         dtype=self.dtype
     )
 

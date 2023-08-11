@@ -493,7 +493,7 @@ def sdeint_udp_ito_em_scan_ou_logged(
 
 
 
-def controlled_sdeint_ito_em_scan(
+def controlled_ais_sdeint_ito_em_scan(
     dim, f, b, g, y0, rng, gamma, args=(), dt=1e-06, g_prod=None,
     step_scheme=uniform_step_scheme, start=0, end=1, dtype=np.float32,
     scheme_args=None):
@@ -531,7 +531,7 @@ def controlled_sdeint_ito_em_scan(
   l_pas = jnp.zeros(y0.shape[0], 1)
   z_pas = jnp.zeros(y0.shape[0], 1)
 
-  y0_aug = (y_pas, l_pas, z_pas)
+  y0_aug = (y_pas, l_pas[..., None], z_pas[..., None])
   t_pas = ts[0]
 
   def euler_step(ytpas, t_):
@@ -548,7 +548,7 @@ def controlled_sdeint_ito_em_scan(
     ) 
 
 
-    delta_y = f_full[:, :dim] * delta_t + g_full[:, :dim] * np.sqrt(delta_t)
+    delta_y = f_full[:, :dim] * delta_t + g_full * np.sqrt(delta_t)
     y = y_pas + delta_y
     b_full = b(y, t_, args)
 
@@ -557,14 +557,16 @@ def controlled_sdeint_ito_em_scan(
     coef = 1. / (2. * jnp.sqrt(delta_t) * gamma)
 
 
-    l = l_pas + coef * jnp.linalg.norm(b_full[:, :dim] - -delta_y)
+    l = l_pas + coef * jnp.linalg.norm(b_full[:, :dim] - delta_y)
 
     z = z_pas + coef * jnp.linalg.norm(delta_y - f_full[:, :dim])
+
+    y_aug = np.concatenate((y, l[..., None], z[..., None]), axis=-1)
     # t_pas = t_
     # y_pas = y
     out = (y, l, z, t_, rng)
-    return out, y
+    return out, y_aug
 
-  _, ys = hk.scan(euler_step, (y_pas, l_pas, z_pas, t_pas, rng), ts[1:])
+  _, ys_aug = hk.scan(euler_step, (y_pas, l_pas, z_pas, t_pas, rng), ts[1:])
 
-  return np.swapaxes(np.concatenate((y0_aug, ys), axis=0), 0, 1), ts
+  return np.swapaxes(np.concatenate((y0_aug, ys_aug), axis=0), 0, 1), ts

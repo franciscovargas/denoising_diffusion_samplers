@@ -153,7 +153,8 @@ def importance_weighted_partition_estimate_dds(augmented_trajectory, _):
   lnz = jscipy.special.logsumexp(-loss, axis=0)  - ln_numsamp
   return - lnz
 
-def controlled_importance_weighted_partition_estimate_dds(augmented_trajectory, _):
+def controlled_ais_importance_weighted_partition_estimate_dds(
+    augmented_trajectory, g, source=None, target=None, dim=2, *_, **__):
   """Logsumexp IS estimator for dds.
 
   Args:
@@ -163,14 +164,22 @@ def controlled_importance_weighted_partition_estimate_dds(augmented_trajectory, 
       smoothed crosent control loss
   """
 
-  _, loss = augmented_trajectory
+  l_cost_term = augmented_trajectory[:, -1, dim]
+  z_cost_term = augmented_trajectory[:, -1, dim + 1]
+
+  x_final_time = augmented_trajectory[:, -1, :dim]
+  x_initial_time = augmented_trajectory[:, 0, :dim]
+
+  terminal_cost = target(x_final_time)
+  source_cost = source(x_initial_time)
+  loss = l_cost_term + z_cost_term - terminal_cost + source_cost
 
   ln_numsamp = np.log(loss.shape[0])
   lnz = jscipy.special.logsumexp(-loss, axis=0)  - ln_numsamp
-  return - lnz
+  return -lnz
 
-def controlled_relative_kl_objective(augmented_trajectory, g,
-                                     stl=False, trim=2, dim=2):
+def controlled_ais_relative_kl_objective(
+    augmented_trajectory, g, target=None, stl=False, trim=2, dim=2,  *_, **__):
   """Vanilla relative KL control objective.
 
   Args:
@@ -182,16 +191,12 @@ def controlled_relative_kl_objective(augmented_trajectory, g,
   Returns:
       kl control loss
   """
-  print(augmented_trajectory.shape)
-  energy_cost_dt = augmented_trajectory[:, -1, 1]
+
+  l_cost_term = augmented_trajectory[:, -1, dim]
+  z_cost_term = augmented_trajectory[:, -1, dim + 1]
+
   x_final_time = augmented_trajectory[:, -1, :dim]
-  x_initial_time = augmented_trajectory[:, 0, dim:2 * dim]
+  x_initial_time = augmented_trajectory[:, 0, :dim]
 
-  # TODO: Finish up the Objective call here.
-
-  # import pdb; pdb.set_trace()
-
-  stl = augmented_trajectory[:, -1, 2 * dim] if stl else 0
-
-  terminal_cost = g(x_final_time)
-  return (energy_cost_dt + terminal_cost + stl).mean()
+  terminal_cost = target(x_final_time)
+  return (l_cost_term - terminal_cost).mean()
