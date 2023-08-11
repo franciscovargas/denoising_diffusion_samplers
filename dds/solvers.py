@@ -553,15 +553,19 @@ def controlled_ais_sdeint_ito_em_scan(
 
 
 #     print(f_full, b_full, g_full, delta_t)
-    coef = 1. / (2. * jnp.sqrt(delta_t) * gamma + 1e-6)
+    coef = 1. / (2. * jnp.sqrt(delta_t) * gamma)
+#     coef = 1. / (2. * jnp.sqrt(delta_t) * gamma + 1e-6)
 
     bdelta = b_full[:, :dim] * delta_t - delta_y
     l = y_pas[:,dim] + coef * ((bdelta)**2).sum(axis=-1)
     
     fdelta = delta_y - delta_t * f_full[:, :dim]
     z = y_pas[:,dim+1] + coef * ((fdelta)**2).sum(axis=-1)
-
-    y_aug = np.concatenate((y, l[..., None], z[..., None]), axis=-1)
+    
+    zero = jnp.zeros((y0.shape[0], 1))
+    y_aug = np.concatenate((y, l[..., None], z[..., None]) , axis=-1)
+    
+#     y_aug = np.concatenate((y, zero, zero) , axis=-1)
     # t_pas = t_
     # y_pas = y
     out = (y_aug, t_, rng)
