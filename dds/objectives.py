@@ -179,7 +179,7 @@ def controlled_ais_importance_weighted_partition_estimate_dds(
   return -lnz
 
 def controlled_ais_relative_kl_objective(
-    augmented_trajectory, g, target=None, stl=False, trim=2, dim=2,  *_, **__):
+    augmented_trajectory, g, source=None, target=None, stl=False, trim=2, dim=2,  *_, **__):
   """Vanilla relative KL control objective.
 
   Args:
@@ -198,5 +198,7 @@ def controlled_ais_relative_kl_objective(
   x_final_time = augmented_trajectory[:, -1, :dim]
   x_initial_time = augmented_trajectory[:, 0, :dim]
 
+  source_cost = source(x_initial_time)
+
   terminal_cost = target(x_final_time)
-  return (l_cost_term - terminal_cost).mean()
+  return (z_cost_term + l_cost_term - terminal_cost + source_cost).mean()

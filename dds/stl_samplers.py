@@ -452,7 +452,7 @@ class AugmentedControlledAIS(hk.Module):
 
   def logp_beta(self, x, t):
     betas_t = self.betas(t)
-    return self.target(x) * betas_t + self.lnp0(x) * (1. - betas_t)
+    return self.target(x) * (1. - betas_t) + self.lnp0(x) * betas_t 
 
   def __call__(
       self, batch_size, is_training=True,
@@ -473,7 +473,9 @@ class AugmentedControlledAIS(hk.Module):
     Returns:
       initialisation array.
     """
-    return self.source_obj.sample(key, sample_shape=(n,))
+    sample = self.source_obj.sample(key, sample_shape=(n,))
+    print(f'sample shape : ', sample.shape)
+    return sample
 
 
   def f_aug(self, y, t, args):
@@ -590,7 +592,7 @@ class AugmentedControlledAIS(hk.Module):
     y0_aug = np.concatenate((y0, zeros, zeros), axis=1)
 
     param_trajectory, ts = controlled_ais_sdeint_ito_em_scan(
-        self.dim, self.f_aug, self.b_aug, self.g_aug, y0_aug, key, self.sigma, dt=dt,
+        self.dim, self.f_aug, self.b_aug, self.g_aug, y0_aug, key, self.sigma ** 2, dt=dt,
         g_prod=None, end=self.tfinal, step_scheme=self.step_scheme,
         dtype=self.dtype
     )
