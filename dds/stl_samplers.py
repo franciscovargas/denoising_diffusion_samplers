@@ -432,7 +432,7 @@ class AugmentedControlledAIS(hk.Module):
     self.target = target  # Target distribution used by networks
 
     # Linear Beta
-    self.betas = lambda t: 1 - t / self.tfinal
+    self.betas_old = lambda t: 1 - t / self.tfinal
 
     # flags which can be useful for different estimators (e.g. CE, Vargrad etc)
     self.detach_drift_path = detach_dritf_path  # Useful for CE/Vargrad
@@ -445,14 +445,50 @@ class AugmentedControlledAIS(hk.Module):
         dim=self.drift_network.state_dim,
         name="stl_detach"
     )
-
+    
     # For annealing purposes in the detached network
     self.detached_drift.ts = self.step_scheme(
         0, self.tfinal, self.dt, dtype=self.dtype,
         **dict())
+    
+    self.n_steps = self.detached_drift.ts.shape[0]
+    self.learn_betas = False
+    self._min_beta_ratio = 0
+    if self.learn_betas:
+      self.logit_betas = hk.get_parameter(
+          name="logit_betas",
+          shape=(self.n_steps - 1,),
+          init=hk.initializers.Constant(0.))
+    else:
+      self.logit_betas = np.zeros((self.n_steps - 1,))
+
+
+    
+
+  def betas(self, t):
+    # Uses the arhtmetic rate thats recommended
+    ts = self.detached_drift.ts
+    t_mask = ts[None, ...] <= np.squeeze(t)[..., None]
+
+    beta_deltas = jax.nn.sigmoid(self.logit_betas)
+
+    beta_deltas = (1. - self._min_beta_ratio) * beta_deltas
+    beta_deltas = beta_deltas + self._min_beta_ratio
+    beta_deltas = np.concatenate([np.array([0.]), beta_deltas])
+
+    beta_deltas_leq_t = beta_deltas[None, ...] * t_mask
+    betas = np.sum(beta_deltas_leq_t, axis=-1) / (np.sum(beta_deltas) + 1e-6)
+    return betas
 
   def logp_beta(self, x, t):
     betas_t = self.betas(t)
+    return self.target(x) * betas_t + self.lnp0(x) * (1. - betas_t)
+
+  def logp_beta_old(self, x, t):
+    betas_t = self.betas(t)
+#     return self.target(x) * betas_t + self.lnp0(x) * (1.0 - betas_t)
+#     return self.target(x)
+    
     return self.target(x) * (1. - betas_t) + self.lnp0(x) * betas_t 
 
   def __call__(
@@ -497,13 +533,13 @@ class AugmentedControlledAIS(hk.Module):
 
     y_no_aug = y[..., :self.dim]
 
-    u_t = self.drift_network(y_no_aug, t_, self.target)
+    u_t = self.drift_network(y_no_aug, t_, self.target) * 0.0
 
     # Using score information as a feature
     grad_lnpi_beta = hk.grad(lambda _x: self.logp_beta(_x, t_).sum())(y_no_aug)
     grad_lnpi_beta = np.clip(grad_lnpi_beta, -self.lgv_clip, self.lgv_clip)
 
-#     u_t += self.gamma * grad_lnpi_beta
+    u_t += self.gamma * grad_lnpi_beta
     n, _ = y_no_aug.shape
     zeros = np.zeros((n, 1))
 
