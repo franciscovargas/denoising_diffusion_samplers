@@ -504,15 +504,10 @@ class AugmentedControlledAIS(hk.Module):
     grad_lnpi_beta = np.clip(grad_lnpi_beta, -self.lgv_clip, self.lgv_clip)
 
     u_t += self.gamma * grad_lnpi_beta
-
-    gamma_t = self.g_aug(y, t, args)[..., :self.dim]**2
-
-    u_t_normsq = ((u_t)**2 / gamma_t).sum(axis=-1)[..., None] / 2.0
-
     n, _ = y_no_aug.shape
     zeros = np.zeros((n, 1))
 
-    return np.concatenate((u_t, zeros, u_t_normsq), axis=-1)
+    return np.concatenate((u_t, zeros, zeros), axis=-1)
   
   def b_aug(self, y, t, args):
     """Computes the drift of the SDE + augmented state space for loss.
@@ -540,14 +535,10 @@ class AugmentedControlledAIS(hk.Module):
 
     u_t -= self.gamma * grad_lnpi_beta
 
-    gamma_t = self.g_aug(y, t, args)[..., :self.dim]**2
-
-    u_t_normsq = ((u_t)**2 / gamma_t).sum(axis=-1)[..., None] / 2.0
-
     n, _ = y_no_aug.shape
     zeros = np.zeros((n, 1))
 
-    return np.concatenate((u_t, zeros, u_t_normsq), axis=-1)
+    return np.concatenate((u_t, zeros, zeros), axis=-1)
 
 
   def g_aug(self, y, t, args):

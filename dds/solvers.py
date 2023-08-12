@@ -9,6 +9,7 @@ from dds.discretisation_schemes import uniform_step_scheme
 from dds.hutchinsons import get_div_fn
 
 # from jax.experimental import ode
+from jax.experimental.host_callback import id_print, call, id_tap
 
 
 
@@ -564,6 +565,12 @@ def controlled_ais_sdeint_ito_em_scan(
     
     zero = jnp.zeros((y0.shape[0], 1))
     y_aug = np.concatenate((y, l[..., None], z[..., None]) , axis=-1)
+    
+    id_tap(lambda x, trans: print(f">>>>>>>>>>>>>>>>> time: {x} <<<<<<<<<<<<<<<<<<<<<"), t_)
+    id_tap(lambda x, trans: print(f"Ystate: {x}"), y_aug[0:10, 1])
+    id_tap(lambda x, trans: print(f"l state: {x}"), y_aug[0:10, dim])
+    id_tap(lambda x, trans: print(f"z state: {x}"), y_aug[0:10, dim + 1])
+    id_tap(lambda x, trans: print(f">>>>>>>>>>>>>>>>> time: {x} <<<<<<<<<<<<<<<<<<<<<\n \n"), t_)
     
 #     y_aug = np.concatenate((y, zero, zero) , axis=-1)
     # t_pas = t_
