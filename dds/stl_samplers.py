@@ -503,7 +503,7 @@ class AugmentedControlledAIS(hk.Module):
     grad_lnpi_beta = hk.grad(lambda _x: self.logp_beta(_x, t_).sum())(y_no_aug)
     grad_lnpi_beta = np.clip(grad_lnpi_beta, -self.lgv_clip, self.lgv_clip)
 
-    u_t += self.gamma * grad_lnpi_beta
+#     u_t += self.gamma * grad_lnpi_beta
     n, _ = y_no_aug.shape
     zeros = np.zeros((n, 1))
 
@@ -527,13 +527,13 @@ class AugmentedControlledAIS(hk.Module):
 
     y_no_aug = y[..., :self.dim]
 
-    u_t = self.drift_network(y_no_aug, t_, self.target)
+    u_t = 0 * self.drift_network(y_no_aug, t_, self.target)
 
     # Using score information as a feature
     grad_lnpi_beta = hk.grad(lambda _x: self.logp_beta(_x, t_).sum())(y_no_aug)
     grad_lnpi_beta = np.clip(grad_lnpi_beta, -self.lgv_clip, self.lgv_clip)
 
-    u_t -= self.gamma * grad_lnpi_beta
+#     u_t -= self.gamma * grad_lnpi_beta
 
     n, _ = y_no_aug.shape
     zeros = np.zeros((n, 1))
