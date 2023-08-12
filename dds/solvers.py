@@ -541,6 +541,7 @@ def controlled_ais_sdeint_ito_em_scan(
 
     this_rng, rng = jax.random.split(rng)
     noise = jax.random.normal(this_rng, y_pas.shape, dtype=dtype)
+    noise_ = noise[:, :dim]
     
     f_full = f(y_pas, t_pas, args)
     g_full =  g_prod(
@@ -548,7 +549,7 @@ def controlled_ais_sdeint_ito_em_scan(
     ) 
 
 
-    delta_y = f_full[:, :dim] * delta_t + g_full[:, :dim] * np.sqrt(delta_t)
+    delta_y = f_full[:, :dim] * delta_t + np.sqrt(gamma) * np.sqrt(delta_t) * noise_
     y = y_pas[:, :dim] + delta_y
     b_full = b(y, t_, args)
 

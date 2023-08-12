@@ -530,13 +530,13 @@ class AugmentedControlledAIS(hk.Module):
 
     y_no_aug = y[..., :self.dim]
 
-    u_t = self.drift_network(y_no_aug, t_, self.target)
-
     # Using score information as a feature
     grad_lnpi_beta = hk.grad(lambda _x: self.logp_beta(_x, t_).sum())(y_no_aug)
     grad_lnpi_beta = np.clip(grad_lnpi_beta, -self.lgv_clip, self.lgv_clip)
+    
+    grad_phi = self.drift_network(y_no_aug, t_, self.target)
+    u_t = grad_phi + self.gamma * grad_lnpi_beta
 
-    u_t += self.gamma * grad_lnpi_beta
     n, _ = y_no_aug.shape
     zeros = np.zeros((n, 1))
 
@@ -560,13 +560,12 @@ class AugmentedControlledAIS(hk.Module):
 
     y_no_aug = y[..., :self.dim]
 
-    u_t = self.drift_network(y_no_aug, t_, self.target)
-
     # Using score information as a feature
     grad_lnpi_beta = hk.grad(lambda _x: self.logp_beta(_x, t_).sum())(y_no_aug)
     grad_lnpi_beta = np.clip(grad_lnpi_beta, -self.lgv_clip, self.lgv_clip)
 
-    u_t -= self.gamma * grad_lnpi_beta
+    grad_phi =  self.drift_network(y_no_aug, t_, self.target)
+    u_t = grad_phi - self.gamma * grad_lnpi_beta
 
     n, _ = y_no_aug.shape
     zeros = np.zeros((n, 1))
@@ -599,14 +598,6 @@ class AugmentedControlledAIS(hk.Module):
 
     zeros = np.zeros((n, 1))  # for last dimmension (which is noiseless)
 
-    # stl vs no stl, here we compute drift(y,t) for the dim:2*dim-1 locs of
-    # the augmented state space (drift(y,t)/C).
-    if self.detach_drift_stoch:
-      u_t = self.detached_drift(y_no_aug, t_, self.target)
-    else:
-      u_t = self.drift_network(y_no_aug, t_, self.target)
-
-#     out = sigma_
     out = np.concatenate((sigma_, zeros, zeros), axis=-1)
     return out
 
