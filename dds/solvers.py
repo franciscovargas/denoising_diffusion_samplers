@@ -554,7 +554,7 @@ def controlled_ais_sdeint_ito_em_scan(
 
 
 #     print(f_full, b_full, g_full, delta_t)
-    coef = 1. / (2. * jnp.sqrt(delta_t) * gamma)
+    coef = 1. / (2. * (delta_t) * gamma)
 #     coef = 1. / (2. * jnp.sqrt(delta_t) * gamma + 1e-6)
 
     bdelta = b_full[:, :dim] * delta_t - delta_y
@@ -566,17 +566,17 @@ def controlled_ais_sdeint_ito_em_scan(
     zero = jnp.zeros((y0.shape[0], 1))
     y_aug = np.concatenate((y, l[..., None], z[..., None]) , axis=-1)
     
-    id_tap(lambda x, trans: print(f">>>>>>>>>>>>>>>>> time: {x} <<<<<<<<<<<<<<<<<<<<<"), t_)
-    id_tap(lambda x, trans: print(f"Ystate: {x}"), y_aug[0:10, 1])
-    id_tap(lambda x, trans: print(f"l state: {x}"), y_aug[0:10, dim])
-    id_tap(lambda x, trans: print(f"backwards drift_1: {x}"), b_full[0:10, 1])
-    id_tap(lambda x, trans: print(f"backwards drift_2: {x}"), b_full[0:10, 2])
-    id_tap(lambda x, trans: print(f"backwards drift_5: {x}"), b_full[0:10, 5])
-    id_tap(lambda x, trans: print(f"forwards drift_1: {x}"), f_full[0:10, 1])
-    id_tap(lambda x, trans: print(f"forwards drift_2: {x}"), f_full[0:10, 2])
-    id_tap(lambda x, trans: print(f"forwards drift_5: {x}"), f_full[0:10, 5])
-    id_tap(lambda x, trans: print(f"z state: {x}"), y_aug[0:10, dim + 1])
-    id_tap(lambda x, trans: print(f">>>>>>>>>>>>>>>>>   dt: {x}   <<<<<<<<<<<<<<<<<<<<<\n \n"), delta_t)
+#     id_tap(lambda x, trans: print(f">>>>>>>>>>>>>>>>> time: {x} <<<<<<<<<<<<<<<<<<<<<"), t_)
+#     id_tap(lambda x, trans: print(f"Ystate: {x}"), y_aug[0:10, 1])
+#     id_tap(lambda x, trans: print(f"l state: {x}"), y_aug[0:10, dim])
+#     id_tap(lambda x, trans: print(f"backwards drift_1: {x}"), b_full[0:10, 1])
+#     id_tap(lambda x, trans: print(f"backwards drift_2: {x}"), b_full[0:10, 2])
+#     id_tap(lambda x, trans: print(f"backwards drift_5: {x}"), b_full[0:10, 5])
+#     id_tap(lambda x, trans: print(f"forwards drift_1: {x}"), f_full[0:10, 1])
+#     id_tap(lambda x, trans: print(f"forwards drift_2: {x}"), f_full[0:10, 2])
+#     id_tap(lambda x, trans: print(f"forwards drift_5: {x}"), f_full[0:10, 5])
+#     id_tap(lambda x, trans: print(f"z state: {x}"), y_aug[0:10, dim + 1])
+#     id_tap(lambda x, trans: print(f">>>>>>>>>>>>>>>>>   dt: {x}   <<<<<<<<<<<<<<<<<<<<<\n \n"), delta_t)
     
 #     y_aug = np.concatenate((y, zero, zero) , axis=-1)
     # t_pas = t_

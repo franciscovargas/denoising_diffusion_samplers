@@ -201,5 +201,5 @@ def controlled_ais_relative_kl_objective(
   source_cost = source(x_initial_time)
 
   terminal_cost = target(x_final_time)
-  return (augmented_trajectory[:, 1, :dim][0] ).mean()
+#   return (augmented_trajectory[:, 1, :dim][0] ).mean()
   return (z_cost_term + l_cost_term - terminal_cost + source_cost).mean()

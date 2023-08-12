@@ -462,9 +462,6 @@ class AugmentedControlledAIS(hk.Module):
     else:
       self.logit_betas = np.zeros((self.n_steps - 1,))
 
-
-    
-
   def betas(self, t):
     # Uses the arhtmetic rate thats recommended
     ts = self.detached_drift.ts
@@ -485,7 +482,7 @@ class AugmentedControlledAIS(hk.Module):
     return self.target(x) * betas_t + self.lnp0(x) * (1. - betas_t)
 
   def logp_beta_old(self, x, t):
-    betas_t = self.betas(t)
+    betas_t = self.betas_old(t)
 #     return self.target(x) * betas_t + self.lnp0(x) * (1.0 - betas_t)
 #     return self.target(x)
     
@@ -533,7 +530,7 @@ class AugmentedControlledAIS(hk.Module):
 
     y_no_aug = y[..., :self.dim]
 
-    u_t = self.drift_network(y_no_aug, t_, self.target) * 0.0
+    u_t = self.drift_network(y_no_aug, t_, self.target)
 
     # Using score information as a feature
     grad_lnpi_beta = hk.grad(lambda _x: self.logp_beta(_x, t_).sum())(y_no_aug)
@@ -563,13 +560,13 @@ class AugmentedControlledAIS(hk.Module):
 
     y_no_aug = y[..., :self.dim]
 
-    u_t = 0 * self.drift_network(y_no_aug, t_, self.target)
+    u_t = self.drift_network(y_no_aug, t_, self.target)
 
     # Using score information as a feature
     grad_lnpi_beta = hk.grad(lambda _x: self.logp_beta(_x, t_).sum())(y_no_aug)
     grad_lnpi_beta = np.clip(grad_lnpi_beta, -self.lgv_clip, self.lgv_clip)
 
-#     u_t -= self.gamma * grad_lnpi_beta
+    u_t -= self.gamma * grad_lnpi_beta
 
     n, _ = y_no_aug.shape
     zeros = np.zeros((n, 1))
