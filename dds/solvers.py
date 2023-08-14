@@ -533,6 +533,7 @@ def controlled_ais_sdeint_ito_em_scan(
 #   z_pas = jnp.zeros((y0.shape[0], 1))
 
   t_pas = ts[0]
+  rt2 = np.sqrt(2.0)
 
   def euler_step(ytpas, t_):
     (y_pas, t_pas, rng) = ytpas
@@ -549,13 +550,13 @@ def controlled_ais_sdeint_ito_em_scan(
     ) 
 
 
-    delta_y = f_full[:, :dim] * delta_t + np.sqrt(gamma) * np.sqrt(delta_t) * noise_
+    delta_y = f_full[:, :dim] * delta_t + rt2 * np.sqrt(gamma) * np.sqrt(delta_t) * noise_
     y = y_pas[:, :dim] + delta_y
     b_full = b(y, t_, args)
 
 
 #     print(f_full, b_full, g_full, delta_t)
-    coef = 1. / (2. * (delta_t) * gamma)
+    coef = 1. / (2. * (delta_t) * gamma * 2.0)
 #     coef = 1. / (2. * jnp.sqrt(delta_t) * gamma + 1e-6)
 
     bdelta = b_full[:, :dim] * delta_t - delta_y
