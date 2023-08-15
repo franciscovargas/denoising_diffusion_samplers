@@ -113,6 +113,7 @@ def get_config() -> configdict.ConfigDict:
   config.model.reference_process_dict.cais = AugmentedControlledAIS
 
   config.model.sigma = 0.25
+  config.model.sigma_base = 0.25
   config.model.alpha = 0.5
   config.model.m = 1.0
 
