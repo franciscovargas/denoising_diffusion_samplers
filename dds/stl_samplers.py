@@ -614,3 +614,33 @@ class AugmentedControlledAIS(hk.Module):
     )
 
     return param_trajectory, ts
+
+
+class ULAAIS(AugmentedControlledAIS):
+  """Basic pinned brownian motion prior STL based sampler. This implements PIS.
+  """
+  alpha: Union[float, np.ndarray]
+  sigma: Union[float, np.ndarray]
+  dim: int
+
+  # drift_network #: Callable[[], hk.Module]
+
+  def __init__(
+      self, sigma, dim, drift_network, tfinal=1, dt=0.05, target=None,
+      step_fac=100, step_scheme=uniform_step_scheme,
+      alpha=1, detach_dif_path=False, detach_stl_drift=False,
+      detach_dritf_path=False, tpu=True, diff_net=None,
+      name="ULAAIS", **_
+  ):
+    super().__init__(sigma, dim, drift_network, tfinal=tfinal,
+                     dt=dt, target=target,
+                     step_fac=step_fac,
+                     step_scheme=uniform_step_scheme,
+                     alpha=alpha, detach_dif_path=detach_dif_path,
+                     detach_stl_drift=detach_stl_drift,
+                     detach_dritf_path=detach_dritf_path,
+                     tpu=tpu, diff_net=diff_net,
+                     name=name, **_)
+    self.learn_betas = True
+    
+    self.drift_network = lambda x, t, targ: 0.0
