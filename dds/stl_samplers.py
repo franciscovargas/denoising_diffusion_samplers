@@ -642,5 +642,9 @@ class ULAAIS(AugmentedControlledAIS):
                      tpu=tpu, diff_net=diff_net,
                      name=name, **_)
     self.learn_betas = True
+    self.logit_betas = hk.get_parameter(
+      name="logit_betas",
+      shape=(self.n_steps - 1,),
+      init=hk.initializers.Constant(0.))
     
     self.drift_network = lambda x, t, targ: 0.0
