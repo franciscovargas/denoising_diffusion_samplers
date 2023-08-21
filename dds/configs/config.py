@@ -43,6 +43,7 @@ from dds.stl_samplers import AugmentedBrownianFollmerSDESTL
 from dds.stl_samplers import AugmentedOUDFollmerSDESTL
 from dds.stl_samplers import AugmentedOUFollmerSDESTL
 from dds.stl_samplers import AugmentedControlledAIS
+from dds.stl_samplers import ULAAIS
 
 from dds.targets import toy_targets
 
@@ -111,8 +112,10 @@ def get_config() -> configdict.ConfigDict:
   config.model.reference_process_dict.pisstl = AugmentedBrownianFollmerSDESTL
   config.model.reference_process_dict.oududp = AugmentedOUDFollmerSDEUDP
   config.model.reference_process_dict.cais = AugmentedControlledAIS
+  config.model.reference_process_dict.ula = ULAAIS
 
   config.model.sigma = 0.25
+  config.model.sigma_base = 0.25
   config.model.alpha = 0.5
   config.model.m = 1.0
 

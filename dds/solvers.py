@@ -9,6 +9,7 @@ from dds.discretisation_schemes import uniform_step_scheme
 from dds.hutchinsons import get_div_fn
 
 # from jax.experimental import ode
+from jax.experimental.host_callback import id_print, call, id_tap
 
 
 
@@ -532,6 +533,7 @@ def controlled_ais_sdeint_ito_em_scan(
 #   z_pas = jnp.zeros((y0.shape[0], 1))
 
   t_pas = ts[0]
+  rt2 = np.sqrt(2.0)
 
   def euler_step(ytpas, t_):
     (y_pas, t_pas, rng) = ytpas
@@ -540,6 +542,7 @@ def controlled_ais_sdeint_ito_em_scan(
 
     this_rng, rng = jax.random.split(rng)
     noise = jax.random.normal(this_rng, y_pas.shape, dtype=dtype)
+    noise_ = noise[:, :dim]
     
     f_full = f(y_pas, t_pas, args)
     g_full =  g_prod(
@@ -547,21 +550,37 @@ def controlled_ais_sdeint_ito_em_scan(
     ) 
 
 
-    delta_y = f_full[:, :dim] * delta_t + g_full[:, :dim] * np.sqrt(delta_t)
+    delta_y = f_full[:, :dim] * delta_t + rt2 * np.sqrt(gamma) * np.sqrt(delta_t) * noise_
     y = y_pas[:, :dim] + delta_y
     b_full = b(y, t_, args)
 
 
 #     print(f_full, b_full, g_full, delta_t)
-    coef = 1. / (2. * jnp.sqrt(delta_t) * gamma + 1e-6)
+    coef = 1. / (2. * (delta_t) * gamma * 2.0)
+#     coef = 1. / (2. * jnp.sqrt(delta_t) * gamma + 1e-6)
 
     bdelta = b_full[:, :dim] * delta_t - delta_y
     l = y_pas[:,dim] + coef * ((bdelta)**2).sum(axis=-1)
     
     fdelta = delta_y - delta_t * f_full[:, :dim]
     z = y_pas[:,dim+1] + coef * ((fdelta)**2).sum(axis=-1)
-
-    y_aug = np.concatenate((y, l[..., None], z[..., None]), axis=-1)
+    
+    zero = jnp.zeros((y0.shape[0], 1))
+    y_aug = np.concatenate((y, l[..., None], z[..., None]) , axis=-1)
+    
+#     id_tap(lambda x, trans: print(f">>>>>>>>>>>>>>>>> time: {x} <<<<<<<<<<<<<<<<<<<<<"), t_)
+#     id_tap(lambda x, trans: print(f"Ystate: {x}"), y_aug[0:10, 1])
+#     id_tap(lambda x, trans: print(f"l state: {x}"), y_aug[0:10, dim])
+#     id_tap(lambda x, trans: print(f"backwards drift_1: {x}"), b_full[0:10, 1])
+#     id_tap(lambda x, trans: print(f"backwards drift_2: {x}"), b_full[0:10, 2])
+#     id_tap(lambda x, trans: print(f"backwards drift_5: {x}"), b_full[0:10, 5])
+#     id_tap(lambda x, trans: print(f"forwards drift_1: {x}"), f_full[0:10, 1])
+#     id_tap(lambda x, trans: print(f"forwards drift_2: {x}"), f_full[0:10, 2])
+#     id_tap(lambda x, trans: print(f"forwards drift_5: {x}"), f_full[0:10, 5])
+#     id_tap(lambda x, trans: print(f"z state: {x}"), y_aug[0:10, dim + 1])
+#     id_tap(lambda x, trans: print(f">>>>>>>>>>>>>>>>>   dt: {x}   <<<<<<<<<<<<<<<<<<<<<\n \n"), delta_t)
+    
+#     y_aug = np.concatenate((y, zero, zero) , axis=-1)
     # t_pas = t_
     # y_pas = y
     out = (y_aug, t_, rng)

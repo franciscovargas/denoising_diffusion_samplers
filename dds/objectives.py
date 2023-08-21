@@ -172,7 +172,7 @@ def controlled_ais_importance_weighted_partition_estimate_dds(
 
   terminal_cost = target(x_final_time)
   source_cost = source(x_initial_time)
-  loss = l_cost_term + z_cost_term - terminal_cost + source_cost
+  loss = l_cost_term - z_cost_term - terminal_cost + source_cost
 
   ln_numsamp = np.log(loss.shape[0])
   lnz = jscipy.special.logsumexp(-loss, axis=0)  - ln_numsamp
@@ -201,4 +201,5 @@ def controlled_ais_relative_kl_objective(
   source_cost = source(x_initial_time)
 
   terminal_cost = target(x_final_time)
-  return (z_cost_term + l_cost_term - terminal_cost + source_cost).mean()
+#   return (augmented_trajectory[:, 1, :dim][0] ).mean()
+  return (l_cost_term  - z_cost_term - terminal_cost + source_cost).mean()

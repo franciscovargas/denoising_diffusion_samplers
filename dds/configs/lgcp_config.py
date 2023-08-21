@@ -25,7 +25,7 @@ def make_config(base_config):
   final_config = configdict.ConfigDict()
   final_config.density = "LogGaussianCoxPines"
   final_config.use_whitened = False
-  final_config.file_path = data_paths.fpines_path
+  final_config.file_path = data_paths.pines_path
   base_config.final_config_lgcp = final_config
 
   base_config.model.input_dim = 1600
