@@ -16,6 +16,8 @@ from dds.solvers import sdeint_ito_em_scan
 from dds.solvers import sdeint_ito_em_scan_ou
 from dds.solvers import controlled_ais_sdeint_ito_em_scan
 
+from jax.experimental.host_callback import id_print, call, id_tap
+
 class AugmentedBrownianFollmerSDESTL(hk.Module):
   """Basic pinned brownian motion prior STL based sampler. This implements PIS.
   """
@@ -412,7 +414,13 @@ class AugmentedControlledAIS(hk.Module):
   ):
     super().__init__(name=name)
 
-    self.gamma = (sigma)**2
+    # self.gamma = (sigma)**2
+
+    self.gamma = hk.get_parameter(
+      name="gamma",
+      shape=(),
+      init=lambda x, y: np.array(sigma) ** 2)
+
     self.sigma = sigma
 
     self.dtype = np.float32 if tpu else np.float64
@@ -454,13 +462,13 @@ class AugmentedControlledAIS(hk.Module):
     self.n_steps = self.detached_drift.ts.shape[0]
     self.learn_betas = False
     self._min_beta_ratio = 0
-    if self.learn_betas:
-      self.logit_betas = hk.get_parameter(
-          name="logit_betas",
-          shape=(self.n_steps - 1,),
-          init=hk.initializers.Constant(0.))
-    else:
-      self.logit_betas = np.zeros((self.n_steps - 1,))
+    # if self.learn_betas:
+    self.logit_betas = hk.get_parameter(
+        name="logit_betas",
+        shape=(self.n_steps - 1,),
+        init=hk.initializers.Constant(0.))
+    # else:
+    #   self.logit_betas = np.zeros((self.n_steps - 1,))
 
   def betas(self, t):
     # Uses the arhtmetic rate thats recommended
@@ -539,6 +547,9 @@ class AugmentedControlledAIS(hk.Module):
 
     n, _ = y_no_aug.shape
     zeros = np.zeros((n, 1))
+
+    # id_tap(lambda x, trans: print(f"source scale_diag: {x}"), self.source_obj.scale_diag)
+    # id_tap(lambda x, trans: print(f"source sigma: {x}"), self.source_obj.sigma)
 
     return np.concatenate((u_t, zeros, zeros), axis=-1)
   
@@ -646,5 +657,4 @@ class ULAAIS(AugmentedControlledAIS):
       name="logit_betas",
       shape=(self.n_steps - 1,),
       init=hk.initializers.Constant(0.))
-    
     self.drift_network = lambda x, t, targ: 0.0
