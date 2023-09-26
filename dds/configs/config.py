@@ -60,19 +60,22 @@ def get_config() -> configdict.ConfigDict:
   config.dataset = configdict.ConfigDict()
   config.trainer = configdict.ConfigDict()
 
-  config.model.fully_connected_units = [64, 64]
+  config.model.fully_connected_units = [20, 20, 20] # [64, 64]
   # config.model.fully_connected_units = [512, 512, 512]
 
   config.model.learn_betas = False
   config.trainer.timer = False
 
-  config.model.batch_size = 300  # 128
-  config.model.elbo_batch_size = 2000
+  config.model.batch_size = 5  # 128
+  config.model.elbo_batch_size = 500
   config.model.terminal_cost = ou_terminal_loss
-  config.model.tfinal = 5.0
-  config.model.dt = 0.078
+  # config.model.tfinal = 5.0
+  # config.model.dt = 0.078
 
-  config.model.stl = True
+  config.model.tfinal = 6.4
+  config.model.dt = 0.05 # K=128
+
+  config.model.stl = False
 
   config.model.tpu = True
 
@@ -92,7 +95,7 @@ def get_config() -> configdict.ConfigDict:
   config.model.activation = config.model.activation_dict[
       config.model.activation_key]
 
-  config.model.step_scheme_key = "uniform"
+  config.model.step_scheme_key = "cos_sq"
   config.model.step_scheme_dict = configdict.ConfigDict()
   config.model.step_scheme_dict.exp_dec = exp_fn_step_scheme
   config.model.step_scheme_dict.cos_sq = cos_sq_fn_step_scheme
@@ -105,7 +108,7 @@ def get_config() -> configdict.ConfigDict:
   config.model.step_scheme = config.model.step_scheme_dict[
       config.model.step_scheme_key]
 
-  config.model.reference_process_key = "oustl"
+  config.model.reference_process_key = "oudstl"
   config.model.reference_process_dict = configdict.ConfigDict()
   config.model.reference_process_dict.oustl = AugmentedOUFollmerSDESTL
   config.model.reference_process_dict.oudstl = AugmentedOUDFollmerSDESTL
@@ -114,17 +117,17 @@ def get_config() -> configdict.ConfigDict:
   config.model.reference_process_dict.cais = AugmentedControlledAIS
   config.model.reference_process_dict.ula = ULAAIS
 
-  config.model.sigma = 0.25
-  config.model.sigma_base = 0.25
+  config.model.sigma = 1.0
+  config.model.sigma_base = 1.0
   config.model.alpha = 0.5
   config.model.m = 1.0
 
-  config.trainer.learning_rate = 0.0001
+  config.trainer.learning_rate = 0.001
 
-  config.trainer.epochs = 2500
-  config.trainer.log_every_n_epochs = 1
+  config.trainer.epochs = 150_000
+  config.trainer.log_every_n_epochs = 100
 
-  config.trainer.lr_sch_base_dec = 1.0  # 0.95 For funnel as per PIS repo
+  config.trainer.lr_sch_base_dec = 0.95  # 0.95 For funnel as per PIS repo
   config.model.stop_grad = True
   config.trainer.notebook = False
   config.trainer.simple_gaus_mean = 6.0
@@ -132,7 +135,7 @@ def get_config() -> configdict.ConfigDict:
   config.trainer.objective = relative_kl_objective
   config.trainer.lnz_is_estimator = importance_weighted_partition_estimate
   config.trainer.lnz_pf_estimator = prob_flow_lnz
-  config.model.detach_stl_drift = True
+  config.model.detach_stl_drift = False
   config.model.detach_path = False
   config.model.log = False
 
@@ -182,7 +185,7 @@ def set_task(config: configdict.ConfigDict, task: str="lr_sonar") -> configdict.
     config.model.input_dim = 10
     log_prob_funn, _ = toy_targets.funnel(d=config.model.input_dim)
 
-    config.model.elbo_batch_size = 2000
+    config.model.elbo_batch_size = 500
     config.trainer.lnpi = log_prob_funn
     config.model.target = log_prob_funn
 
