@@ -1,10 +1,10 @@
 # %%
-from dds.configs.config import set_task, get_config
+from dds.configs.config import set_task
 from dds.train_dds import train_dds
 
 
 import numpy as onp
-from dds.utils import flatten_nested_dict, update_config_dict, setup_training, make_grid, W2_distance
+from dds.utils import flatten_nested_dict, update_config_dict
 import jax
 from absl import app, flags
 from ml_collections import config_dict as configdict
