@@ -69,8 +69,8 @@ def get_config() -> configdict.ConfigDict:
   config.model.batch_size = 300  # 128
   config.model.elbo_batch_size = 2000
   config.model.terminal_cost = ou_terminal_loss
-  config.model.tfinal = 5.0
-  config.model.dt = 0.078
+  config.model.tfinal = 5.0 # 3.2, 6.4, 12.8, 25.6
+  config.model.dt = 0.078 # 0.05
 
   config.model.stl = True
 
@@ -121,7 +121,7 @@ def get_config() -> configdict.ConfigDict:
 
   config.trainer.learning_rate = 0.0001
 
-  config.trainer.epochs = 2500
+  config.trainer.epochs = 11000
   config.trainer.log_every_n_epochs = 1
 
   config.trainer.lr_sch_base_dec = 1.0  # 0.95 For funnel as per PIS repo

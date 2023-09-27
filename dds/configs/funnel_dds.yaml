@@ -1,0 +1,14 @@
+entity: shreyaspadhy
+project: dds
+program: funnel_iclr_sweep.py
+
+method: grid
+parameters:
+  model.tfinal:
+    values: [0.4, 0.8, 1.6, 3.2, 6.4, 12.8]
+
+command:
+  - python
+  - ${program}
+  - --config
+  - configs/config.py

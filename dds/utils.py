@@ -13,3 +13,10 @@ def flatten_nested_dict(nested_dict, parent_key="", sep="."):
             items.append((new_key, cfg))
 
     return dict(items)
+
+def update_config_dict(config_dict, run, new_vals: dict):
+    config_dict.unlock()
+    config_dict.update_from_flattened_dict(run.config)
+    config_dict.update_from_flattened_dict(new_vals)
+    run.config.update(new_vals, allow_val_change=True)
+    config_dict.lock()
