@@ -1,0 +1,6 @@
+wandb agent --count 1 shreyaspadhy/dds/hmvcn712
+wandb agent --count 1 shreyaspadhy/dds/hmvcn712
+wandb agent --count 1 shreyaspadhy/dds/hmvcn712
+wandb agent --count 1 shreyaspadhy/dds/hmvcn712
+wandb agent --count 1 shreyaspadhy/dds/hmvcn712
+wandb agent --count 1 shreyaspadhy/dds/hmvcn712
