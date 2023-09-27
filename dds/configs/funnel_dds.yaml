@@ -6,6 +6,8 @@ method: grid
 parameters:
   model.tfinal:
     values: [0.4, 0.8, 1.6, 3.2, 6.4, 12.8]
+  model.reference_process_key:
+    values: ["oudstl", "pisstl"]
 
 command:
   - python

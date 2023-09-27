@@ -16,7 +16,7 @@ FLAGS = flags.FLAGS
 
 opt_funnel = {
     'funnel': {
-        '32': {
+        '64': {
             'oudstl': {
                 'sigma': 1.075,
                 'alpha': 1.075,
@@ -33,7 +33,7 @@ opt_funnel = {
                 'm': 0.9
             }
         },
-        '64': {
+        '128': {
             'oudstl': {
                 'sigma': 1.075,
                 'alpha': 0.6875,
@@ -50,7 +50,7 @@ opt_funnel = {
                 'm': 0.9
             }
         },
-        '128': {
+        '256': {
             'oudstl': {
                 'sigma': 1.85,
                 'alpha': 0.3,
@@ -67,7 +67,7 @@ opt_funnel = {
                 'm': 0.9
             }
         },
-        '256': {
+        '512': {
             'oudstl': {
                 'sigma': 1.4625000000000001,
                 'alpha': 0.3,
@@ -105,6 +105,7 @@ def main(funnel_config):
     # %%
         # update_config_dict(funnel_config, run, {})
         funnel_config.model.tfinal = run.config['model.tfinal']
+        funnel_config.model.reference_process_key = run.config['model.reference_process_key']
         # Time and step settings (Need to be done before calling set_task)
         # funnel_config.model.tfinal = 1.6
         funnel_config.model.dt = 0.05
@@ -112,27 +113,23 @@ def main(funnel_config):
         if funnel_config.model.reference_process_key == "oudstl":
             funnel_config.model.step_scheme_key = "cos_sq"
 
-        funnel_config = set_task(funnel_config, "funnel")
-        funnel_config.model.reference_process_key = "oudstl"
-
-        if funnel_config.model.reference_process_key == "oudstl":
-            funnel_config.model.step_scheme_key = "cos_sq"
+        funnel_config = set_task(funnel_config, "funnel") 
             
-            # Opt setting for funnel
-            key = int(funnel_config.model.tfinal / funnel_config.model.dt)
-            key = 32 if key < 32 else key
+        # Opt setting for funnel
+        key = int(funnel_config.model.tfinal / funnel_config.model.dt)
+        key = 64 if key < 64 else key
 
-            print(f'K: {key}')
-            # funnel_config.model.sigma = 1.075
-            # funnel_config.model.alpha = 0.6875
-            # funnel_config.model.m = 1.0
+        print(f'K: {key}')
+        # funnel_config.model.sigma = 1.075
+        # funnel_config.model.alpha = 0.6875
+        # funnel_config.model.m = 1.0
 
-            funnel_config.model.sigma = opt_funnel['funnel'][str(key)][funnel_config.model.reference_process_key]['sigma']
-            funnel_config.model.alpha = opt_funnel['funnel'][str(key)][funnel_config.model.reference_process_key]['alpha']
-            funnel_config.model.m = opt_funnel['funnel'][str(key)][funnel_config.model.reference_process_key]['m']
-                
-            # Path opt settings    
-            funnel_config.model.exp_dds = False
+        funnel_config.model.sigma = opt_funnel['funnel'][str(key)][funnel_config.model.reference_process_key]['sigma']
+        funnel_config.model.alpha = opt_funnel['funnel'][str(key)][funnel_config.model.reference_process_key]['alpha']
+        funnel_config.model.m = opt_funnel['funnel'][str(key)][funnel_config.model.reference_process_key]['m']
+            
+        # Path opt settings    
+        funnel_config.model.exp_dds = False
 
 
         funnel_config.model.stl = False
