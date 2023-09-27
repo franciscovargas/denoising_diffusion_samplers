@@ -103,7 +103,8 @@ def main(funnel_config):
 
     with wandb.init(**wandb_kwargs) as run:
     # %%
-        update_config_dict(funnel_config, run, {})
+        # update_config_dict(funnel_config, run, {})
+        funnel_config.model.tfinal = run.config['model.tfinal']
         # Time and step settings (Need to be done before calling set_task)
         # funnel_config.model.tfinal = 1.6
         funnel_config.model.dt = 0.05
