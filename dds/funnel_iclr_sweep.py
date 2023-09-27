@@ -87,11 +87,84 @@ opt_funnel = {
     }
 }
 
+opt_lgcp = {
+    'lgcp': {
+        '64': {
+            'oudstl': {
+                'sigma': 2.1,
+                'alpha': 1.5000000000000002,
+                'm': None
+            },
+            'pisstl': {
+                'sigma': 1.0675000000000001,
+                'alpha': 1.0,
+                'm': None
+            },
+            'oududmp': {
+                'sigma': 1.1,
+                'alpha': 2.5,
+                'm': 0.4
+            }
+        },
+        '128': {
+            'oudstl': {
+                'sigma': 2.1,
+                'alpha': 0.75,
+                'm': None
+            },
+            'pisstl': {
+                'sigma': 0.7416666666666667,
+                'alpha': 1.0,
+                'm': None
+            },
+            'oududmp': {
+                'sigma': 1.4,
+                'alpha': 2.5,
+                'm': 0.4
+            }
+        },
+        '256': {
+            'oudstl': {
+                'sigma': 2.1,
+                'alpha': 0.9000000000000001,
+                'm': None
+            },
+            'pisstl': {
+                'sigma': 0.57875,
+                'alpha': 1.0,
+                'm': None
+            },
+            'oududmp': {
+                'sigma': 1.4,
+                'alpha': 4.5,
+                'm': 0.4
+            }
+        },
+        '512': {
+            'oudstl': {
+                'sigma': 2.1,
+                'alpha': 1.5000000000000002,
+                'm': None
+            },
+            'pisstl': {
+                'sigma': 0.4158333333333334,
+                'alpha': 1.0,
+                'm': None
+            },
+            'oududmp': {
+                'sigma': 1.7,
+                'alpha': 4.5,
+                'm': 0.4
+            }
+        }
+    }
+}
+
 
 def main(funnel_config):
 
     # funnel_config = get_config()
-
+    task = "lgcp"
 
     wandb_kwargs = {
             "project": funnel_config.wandb.project,
@@ -110,10 +183,14 @@ def main(funnel_config):
         # funnel_config.model.tfinal = 1.6
         funnel_config.model.dt = 0.05
 
+        funnel_config.batch_size = 20
+        funnel_config.elbo_batch_size = 500
+        funnel_config.epochs = 37500
+
         if funnel_config.model.reference_process_key == "oudstl":
             funnel_config.model.step_scheme_key = "cos_sq"
 
-        funnel_config = set_task(funnel_config, "funnel") 
+        funnel_config = set_task(funnel_config, task) 
             
         # Opt setting for funnel
         key = int(funnel_config.model.tfinal / funnel_config.model.dt)
@@ -124,9 +201,10 @@ def main(funnel_config):
         # funnel_config.model.alpha = 0.6875
         # funnel_config.model.m = 1.0
 
-        funnel_config.model.sigma = opt_funnel['funnel'][str(key)][funnel_config.model.reference_process_key]['sigma']
-        funnel_config.model.alpha = opt_funnel['funnel'][str(key)][funnel_config.model.reference_process_key]['alpha']
-        funnel_config.model.m = opt_funnel['funnel'][str(key)][funnel_config.model.reference_process_key]['m']
+        
+        funnel_config.model.sigma = opt_lgcp[task][str(key)][funnel_config.model.reference_process_key]['sigma']
+        funnel_config.model.alpha = opt_lgcp[task][str(key)][funnel_config.model.reference_process_key]['alpha']
+        funnel_config.model.m = opt_lgcp[task][str(key)][funnel_config.model.reference_process_key]['m']
             
         # Path opt settings    
         funnel_config.model.exp_dds = False
@@ -138,7 +216,7 @@ def main(funnel_config):
         funnel_config.trainer.notebook = True
         # Opt settings we use
         # funnel_config.trainer.learning_rate = 0.0001
-        funnel_config.trainer.learning_rate = 5 * 10**(-3)
+        funnel_config.trainer.learning_rate = 1 * 10**(-3)
         funnel_config.trainer.lr_sch_base_dec = 0.95 # For funnel
 
         print(funnel_config)
@@ -189,37 +267,38 @@ def main(funnel_config):
             'final_ln_Z_std': onp.std(out_dict[-1]["is_eval"]),
         })
 
-        params, model_state, forward_fn_wrap, rng_key, results_dict = out_dict
-        print(results_dict.keys())
-        neg_energy, sample = funnel()
+        if task != "lgcp":
+            params, model_state, forward_fn_wrap, rng_key, results_dict = out_dict
+            print(results_dict.keys())
+            neg_energy, sample = funnel()
 
 
-        (augmented_trajectory, _), _ = forward_fn_wrap(params, model_state, rng_key,
-                                                        15000)
+            (augmented_trajectory, _), _ = forward_fn_wrap(params, model_state, rng_key,
+                                                            15000)
 
-        n_seeds = 30
-        samples = augmented_trajectory[:, -1, :10]
+            n_seeds = 30
+            samples = augmented_trajectory[:, -1, :10]
 
-        target_samples = sample(15000)
+            target_samples = sample(15000)
 
-        print(samples.shape, target_samples.shape)
+            print(samples.shape, target_samples.shape)
 
-        num_samples_per_seed = 500
+            num_samples_per_seed = 500
 
-        w2_dists = []
+            w2_dists = []
 
-        for i in range(n_seeds):
-            target_samples_i = target_samples[i * num_samples_per_seed: (i + 1) * num_samples_per_seed]
-            samples_i = samples[i * num_samples_per_seed: (i + 1) * num_samples_per_seed]
-            w2_dists.append(W2_distance(target_samples_i, samples_i))
+            for i in range(n_seeds):
+                target_samples_i = target_samples[i * num_samples_per_seed: (i + 1) * num_samples_per_seed]
+                samples_i = samples[i * num_samples_per_seed: (i + 1) * num_samples_per_seed]
+                w2_dists.append(W2_distance(target_samples_i, samples_i))
 
-        print(onp.mean(w2_dists), onp.std(w2_dists))
+            print(onp.mean(w2_dists), onp.std(w2_dists))
 
-        run.log({
-            'W2': onp.mean(w2_dists),
-            'W2_std': onp.std(w2_dists),
-        })
-        
+            run.log({
+                'W2': onp.mean(w2_dists),
+                'W2_std': onp.std(w2_dists),
+            })
+            
 
 
 if __name__ == "__main__":
