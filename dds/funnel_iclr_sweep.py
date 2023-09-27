@@ -164,7 +164,7 @@ opt_lgcp = {
 def main(funnel_config):
 
     # funnel_config = get_config()
-    task = "lgcp"
+    task = "gmm"
 
     wandb_kwargs = {
             "project": funnel_config.wandb.project,
@@ -177,15 +177,19 @@ def main(funnel_config):
     with wandb.init(**wandb_kwargs) as run:
     # %%
         # update_config_dict(funnel_config, run, {})
+
         funnel_config.model.tfinal = run.config['model.tfinal']
         funnel_config.model.reference_process_key = run.config['model.reference_process_key']
+
+        funnel_config.model.sigma = run.config['model.sigma']
+        funnel_config.model.alpha = run.config['model.alpha']
         # Time and step settings (Need to be done before calling set_task)
         # funnel_config.model.tfinal = 1.6
         funnel_config.model.dt = 0.05
 
-        funnel_config.batch_size = 20
-        funnel_config.elbo_batch_size = 500
-        funnel_config.epochs = 37500
+        funnel_config.batch_size = 300
+        funnel_config.elbo_batch_size = 2000
+        funnel_config.epochs = 11000
 
         if funnel_config.model.reference_process_key == "oudstl":
             funnel_config.model.step_scheme_key = "cos_sq"
@@ -202,10 +206,12 @@ def main(funnel_config):
         # funnel_config.model.m = 1.0
 
         
-        funnel_config.model.sigma = opt_lgcp[task][str(key)][funnel_config.model.reference_process_key]['sigma']
-        funnel_config.model.alpha = opt_lgcp[task][str(key)][funnel_config.model.reference_process_key]['alpha']
-        funnel_config.model.m = opt_lgcp[task][str(key)][funnel_config.model.reference_process_key]['m']
-            
+        # funnel_config.model.sigma = opt_lgcp["lgcp"][str(key)][funnel_config.model.reference_process_key]['sigma']
+        # funnel_config.model.alpha = opt_lgcp["lgcp"][str(key)][funnel_config.model.reference_process_key]['alpha']
+        # funnel_config.model.m = opt_lgcp["lgcp"][str(key)][funnel_config.model.reference_process_key]['m']
+        # funnel_config.model.sigma = 1.0
+        # funnel_config.model.alpha = 1.0
+
         # Path opt settings    
         funnel_config.model.exp_dds = False
 
