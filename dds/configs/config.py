@@ -16,6 +16,7 @@ from dds.configs import lgcp_config
 from dds.configs import log_reg_config
 from dds.configs import pretrained_nice_config
 from dds.configs import vae_config
+from dds.configs import gmm_config
 
 from dds.discretisation_schemes import cos_sq_fn_step_scheme
 from dds.discretisation_schemes import exp_fn_step_scheme
@@ -170,6 +171,8 @@ def set_task(config: configdict.ConfigDict, task: str="lr_sonar") -> configdict.
     config = log_reg_config.make_log_reg_config(config)
   elif task == "lgcp":
     config = lgcp_config.make_config(config)
+  elif task == "gmm":
+    config = gmm_config.make_config(config)
   elif task == "vae":
     config = vae_config.make_config(config)
   elif task == "nice":
