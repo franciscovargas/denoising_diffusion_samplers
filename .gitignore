@@ -28,6 +28,7 @@ share/python-wheels/
 MANIFEST
 dds/wandb/*
 wandb*
+dds/logs/*
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
