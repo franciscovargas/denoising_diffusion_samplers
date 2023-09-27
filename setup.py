@@ -16,8 +16,8 @@ except:
     reqs = [str(ir.requirement) for ir in install_reqs]
 
 git_reqs = [
-    "annealed_flow_transport @ git+https://github.com/franciscovargas/annealed_flow_transport",
-    "jaxline @ git+https://github.com/deepmind/jaxline"
+    # "annealed_flow_transport @ git+https://github.com/franciscovargas/annealed_flow_transport",
+    # "jaxline @ git+https://github.com/deepmind/jaxline"
 ]
 
 
